@@ -1,66 +1,80 @@
 module Syntax where
 
--- LOCATIONS AND INPUT CHANNELS
+-- LOCATIONS AND INPUT CHANNELS.. AND VARIABLE
 -- These are just temporary aliases.. 
 -- type Loc = String
 -- type Chan = String -- b, bp, p
+type Variable   = String 
+
 
 -- CLOCK EXPRESSIONS
 data ClockExpr 
     = Clock Term
     | SqUnion ClockExpr ClockExpr
 
+
 -- TYPING CONTEXT
+
+{-  Q: From what Patrick wrote on the board, but I'm not sure about where 
+    the context with only tick fits in?
+
+    Q: Also, what example from the paper should be look at? 
+-}
+
 type SCtxt = [(Variable, Type)] -- Simple Context: mapping from variable to type (which has a value)
 
 data Ctxt
     = EmptyCtxt
     | Ctxt [(SCtxt, ClockExpr)]
 
--- Peano Natural Numbers
-data PeanoNat
-    = Zero          -- Fig. 3 (21)
-    | Succ PeanoNat -- Fig. 3 (22)
 
 -- TYPES
 data Type 
     = Unit                     
-    | Nat PeanoNat        -- should not take an Int because it's a TYPE
+    | Nat
     | Prod Type Type
     | Sum Type Type
     | Fun Type Type 
     | EL Type           -- ⊛∃ A
     | AL Type           -- ⊛∀ A
-    | Boxed Type          -- □ A (renamed Boxed because of Box function)
+    | Box Type          -- □ A (renamed Boxed because of Box function)
     -- | Fix Var Type     -- Fix α. A
     -- | Wait Chan
     -- | Into Type
 
 isStable :: Type -> Bool
 isStable Unit        = True
-isStable (Nat n)     = True -- Should check NatVal? 
+isStable Nat         = True
 isStable (Prod s s') = isStable s && isStable s'
 isStable (Sum s s')  = isStable s && isStable s'
 isStable (AL _)      = True
-isStable (Boxed _)   = True
+isStable (Box _)     = True
 isStable _           = False -- Fun, EL 
 
 isValueType :: Type -> Bool
 isValueType Unit        = True
-isValueType (Nat n)     = True -- Should check NatVal? 
+isValueType Nat         = True
 isValueType (Prod s s') = isValueType s && isValueType s'
 isValueType (Sum s s')  = isValueType s && isValueType s'
 isValueType _           = False -- Fun, EL, AL, Box
 
+
 -- TERMS
 data Injection  = Inl | Inr
 data Projection = Fst | Snd
-type Variable   = String 
 
--- Q: I don't get this one.. Why can we not have it nested? Should it be a helper function instead or should we simply expand the "Term" to include them?
+{-  Q: I (still) don't get the Value completely..
+    Why can we not have it nested? Should it be a helper 
+    function instead or should we simply expand the "Term" to 
+    include them? Look below for helper function. 
+-}
+
 data Term 
     = Var    Variable 
-    | Suc    PeanoNat -- Not sure about this.. 
+    | UniVal  -- ()
+    | Zero    -- 0
+    | Suc    Term
+    | Lambda Variable Term
     | Pair   Term Term        -- (s,t)
     | Inj    Injection Term    -- left or right
     | Proj   Projection Term  -- fst or snd
@@ -71,19 +85,16 @@ data Term
     | Adv    Term                -- OK
     | AdvAL  Term              -- OK
     | Select Term Term 
-    | Box    Term -- value
+    | BoxVal Term -- value
     | Unbox  Term              -- OK
     | Never                   -- OK
 ---    | Read Chan -- do we need lexier here to parse chan (which at this point is a) string? 
 
--- For now.. helper function to check if the term is value or not
 isValue :: Term -> Bool
 isValue (Var v)    = True -- x
+isValue UniVal     = True -- ()
+isValue Zero       = True -- 0
+isValue (Suc v)    = isValue v
 isValue (Pair s t) = isValue s && isValue t
--- isValue (Suc v) = isValue v -- isPeanoNat v? Helper function?
-isValue (Inj i v)  = isInjection i && isValue v
-isValue (Box t)    = True -- t is term, not value so don't need to recurse
-
-isInjection :: Injection -> Bool
-isInjection Inl = True
-isInjection Inr = True
+isValue (Inj _ v)  = isValue v
+isValue (BoxVal t) = True -- t is term, not value so don't need to recurse
