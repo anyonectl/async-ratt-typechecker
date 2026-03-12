@@ -12,8 +12,8 @@ isPush (Chan Buffered _) = False
 isPush _                 = True
 
 isBuff :: Chan -> Bool
-isPush (Chan Push _) = False
-isPush _             = True
+isBuff (Chan Push _) = False
+isBuff _             = True
 
 -- CLOCKS
 data ClockExpr = ClockOf Term
@@ -32,7 +32,7 @@ emptyCtx = ([], []) -- the empty typing context
 
 -- Add variable binding  x : A to a typing context
 addVarBind :: Var -> Type -> Ctx -> Ctx
-addVarBind v T (simple, ticked) = ((v, T) : simple, ticked)
+addVarBind v t (simple, ticked) = ((v, t) : simple, ticked)
 
 -- Add a tick on some clock to a typing context
 addTick :: ClockExpr -> Ctx -> Ctx
@@ -53,16 +53,16 @@ isStable One         = True
 isStable Nat         = True
 isStable (AL _)      = True
 isStable (Always _)  = True
-isStable (Prod T T') = isStable T && isStable T'
-isStable (Sum T T')  = isStable T && isStable T'
+isStable (Prod t t') = isStable t && isStable t'
+isStable (Sum t t')  = isStable t && isStable t'
 isStable _           = False
 
 isValueType :: Type -> Bool
-isValue One         = True
-isValue Nat         = True
-isValue (Prod T T') = isValue T && isValue T'
-isValue (Sum T T')  = isValue T && isValue T'
-isValue _           = False
+isValueType One         = True
+isValueType Nat         = True
+isValueType (Prod t t') = isValueType t && isValueType t'
+isValueType (Sum t t')  = isValueType t && isValueType t'
+isValueType _           = False
 
 -- TERMS
 data Term = Variable Var                -- variable
@@ -97,7 +97,7 @@ isValue Zero         = True
 isValue (Suc v)      = isValue v
 isValue (Lambda _ _) = True
 isValue (Pair v w)   = isValue v && isValue w
-isValue (In _ v)     = isValue v
+isValue (Inj _ v)    = isValue v
 isValue (Wait _)     = True
 isValue (Box _)      = True
 isValue _            = False
