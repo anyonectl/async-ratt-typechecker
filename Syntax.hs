@@ -47,6 +47,7 @@ data Type = One                         -- simplest possible type, with exactly 
           | EL Type                     -- delayed computation on a local clock (sometime later); a pair of 1) a clock, and 2) a suspended computation that produces a value of type A the next time the clock ticks
           | AL Type                     -- delay on the global clock (anytime later); a value of type this AL type is a computation that will produce a value of type A after any clock ticks
           | Always Type                 -- type of a timeless computation (the stable modal operator, pronounced 'box')
+          | Sig Type                    -- Sig A is a signal of type A
 
 isStable :: Type -> Bool
 isStable One         = True
@@ -85,6 +86,9 @@ data Term = Variable Var                -- variable
           | Never
           | Wait Chan                   -- InputChannel must be P or BP
           | Read Chan                   -- InputChannel must be B or BP
+          | Head Term                   
+          | Tail Term
+          | Cons Term Term
 
 data Injection = InLeft | InRight
 data Projection = Fst | Snd
@@ -100,4 +104,5 @@ isValue (Pair v w)   = isValue v && isValue w
 isValue (Inj _ v)    = isValue v
 isValue (Wait _)     = True
 isValue (Box _)      = True
+isValue (Head _)     = True             -- is the term `Head Term` a value?
 isValue _            = False
