@@ -1,28 +1,46 @@
 module Syntax where
 
--- Todo: Locations, channels (?)
+-- INPUT CHANNELS
+data Chan = P Type      -- push channel
+          | B Type      -- buffered channel
+          | BP Type     -- buffered push channel
 
--- data InputChannel = P
---                   | B
---                   | BP
+chanType :: Chan -> Type
+chanType (P A)  = A
+chanType (B A)  = A
+chanType (BP A) = A
 
-type Var = String                   -- type to represent variables
+chanClass :: Chan -> String
+chanClass P  = "Push"
+chanClass B  = "Buffered"
+chanClass BP = "BufferedPush"
 
+isPush :: Chan -> Bool
+isPush (B _) = False
+_            = True
+
+-- CLOCKS
 data ClockExpr = ClockOf Term
                | ClockUnion ClockExpr ClockExpr
 
+-- VARIABLE
+type Var = String   -- type to represent variables
+
 -- TYPING CONTEXT
-type TypingCtx = [CtxExtension]         -- ordered list of typing context extensions (need to be able to see what variable bindings exist before and after a tick, so order matters)
+type SimpleCtx = [(Var, Type)]
 
-emptyCtx :: TypingCtx
-emptyCtx = []                           -- the empty typing context       
+type Ctx = (SimpleCtx, [(ClockExpr, SimpleCtx)])
 
-data CtxExtension = VarBind Var Type    -- a typing context can either be extended with a variable binding
-                  | Tick ClockExpr      -- or a tick on some clock
+emptyCtx :: Ctx
+emptyCtx = ([], []) -- the empty typing context       
 
--- Todo: Add variable binding  x : A to a typing context
+-- Add variable binding  x : A to a typing context
+addVarBind :: Var -> Type -> Ctx -> Ctx
+addVarBind v t ctx = ((v, t) :: ctx.fst, ctx.snd)
 
--- Todo: Add a tick on some clock to a typing context
+-- Add a tick on some clock to a typing context
+addTick :: ClockExpr -> Ctx -> Ctx
+addTick cl ctx = ([], (cl, ctx.fst) :: ctx.snd)
 
 -- TYPES
 data Type = One                         -- simplest possible type, with exactly one value: () (unit)
@@ -35,6 +53,17 @@ data Type = One                         -- simplest possible type, with exactly 
           | Always Type                 -- type of a timeless computation (the stable modal operator, pronounced 'box')
 
 -- Todo: Is a type a stable type? Is a type a value type? Helper functions?
+isStable :: Type -> Bool
+isStable One = True
+isStable Nat = True
+isStable (AL _) = True
+isStable (Always _) = True
+isStable (Prod t t') = if isStable t && isStable t' then True else False
+isStable (Sum t t') = if isStable t && isStable t' then True else False
+isStable _ = False
+
+
+isValue :: Type -> Bool
 
 -- TERMS
 data Term = Var Var                     -- variable
@@ -55,7 +84,8 @@ data Term = Var Var                     -- variable
           | Box Term                    -- create a stable computation
           | Unbox Term                  -- use a stable computation  (correct)
           | Never                       -- correct
---        | Wait InputChannel           -- InputChannel must be P or BP
---        | Read InputChannel           -- InputChannel must be B or BP
+          | Wait Chan                   -- InputChannel must be P or BP
+          | Read Chan                   -- InputChannel must be B or BP
 
 -- Todo: Is a term a value (cant be reduced more)? (Is it even important?)
+isValue :: Term -> Bool
