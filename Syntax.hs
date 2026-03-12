@@ -65,26 +65,29 @@ isValue (Sum T T')  = isValue T && isValue T'
 isValue _           = False
 
 -- TERMS
-data Term = Variable Var                 -- variable
+data Term = Variable Var                -- variable
           | Unit                        -- unit
           | Zero                        -- the constant 0 always has type Nat
           | Suc Term                    -- +1 (suc t alays has type Nat)
           | Pair Term Term              -- pair (has type Tuple)
-          | In Int Term                 -- sum injection (corresponds to Left and Right in Haskell)
-          | Pi Int Term                 -- projection (extracts one component from a pair, like fst / snd in Haskell)
+          | Inj Injection Term          -- sum injection (corresponds to Left and Right in Haskell)
+          | Proj Projection Term        -- projection (extracts one component from a pair, like fst / snd in Haskell)
           | Let Var Term Term           -- let binding (how: need a type to represent variables)
           | Lambda Var Term             -- function (lambda x.t)
           | App Term Term               -- function application (apply t to t')
-          | Case Term Var Term Var Term -- case analysis (pattern matching on a sum type) (not completely sure why it has to carry `Term Var Term Var Term` ...)
-          | Delay ClockExpr Term        -- correct (has type EL A)
-          | Adv Term                    -- Term must be a value (correct)
-          | AdvAL Term                  -- advance a anytime-later computation (correct)
+          | Case Term Var Term Var Term -- case analysis (pattern matching on a sum type)
+          | Delay ClockExpr Term        -- has type EL A
+          | Adv Term                    -- Term must be a value
+          | AdvAL Term                  -- advance a anytime-later computation
           | Select Term Term            -- synchronising two delayed computations / find out which clock fired
           | Box Term                    -- create a stable computation
-          | Unbox Term                  -- use a stable computation  (correct)
-          | Never                       -- correct
+          | Unbox Term                  -- use a stable computation
+          | Never
           | Wait Chan                   -- InputChannel must be P or BP
           | Read Chan                   -- InputChannel must be B or BP
+
+data Injection = InLeft | InRight
+data Projection = Fst | Snd
 
 -- Check if a term is a value (can't be reduced further)
 isValue :: Term -> Bool
