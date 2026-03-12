@@ -6,25 +6,25 @@ data Chan = P Type      -- push channel
           | BP Type     -- buffered push channel
 
 chanType :: Chan -> Type
-chanType (P A)  = A
-chanType (B A)  = A
-chanType (BP A) = A
+chanType (P T)  = T
+chanType (B T)  = T
+chanType (BP T) = T
 
 chanClass :: Chan -> String
-chanClass P  = "Push"
-chanClass B  = "Buffered"
-chanClass BP = "BufferedPush"
+chanClass (P _)  = "Push"
+chanClass (B _)  = "Buffered"
+chanClass (BP _) = "BufferedPush"
 
 isPush :: Chan -> Bool
 isPush (B _) = False
-_            = True
+isPush _     = True
 
 -- CLOCKS
 data ClockExpr = ClockOf Term
                | ClockUnion ClockExpr ClockExpr
 
 -- VARIABLE
-type Var = String   -- type to represent variables
+newtype Var = Var String   -- type to represent variables
 
 -- TYPING CONTEXT
 type SimpleCtx = [(Var, Type)]
@@ -36,11 +36,11 @@ emptyCtx = ([], []) -- the empty typing context
 
 -- Add variable binding  x : A to a typing context
 addVarBind :: Var -> Type -> Ctx -> Ctx
-addVarBind v t ctx = ((v, t) :: ctx.fst, ctx.snd)
+addVarBind v T (simple, ticked) = ((v, T) : simple, ticked)
 
 -- Add a tick on some clock to a typing context
 addTick :: ClockExpr -> Ctx -> Ctx
-addTick cl ctx = ([], (cl, ctx.fst) :: ctx.snd)
+addTick cl (simple, ticked) = ([], (cl, simple) : ticked)
 
 -- TYPES
 data Type = One                         -- simplest possible type, with exactly one value: () (unit)
@@ -52,23 +52,26 @@ data Type = One                         -- simplest possible type, with exactly 
           | AL Type                     -- delay on the global clock (anytime later); a value of type this AL type is a computation that will produce a value of type A after any clock ticks
           | Always Type                 -- type of a timeless computation (the stable modal operator, pronounced 'box')
 
--- Todo: Is a type a stable type? Is a type a value type? Helper functions?
 isStable :: Type -> Bool
-isStable One = True
-isStable Nat = True
-isStable (AL _) = True
-isStable (Always _) = True
-isStable (Prod t t') = if isStable t && isStable t' then True else False
-isStable (Sum t t') = if isStable t && isStable t' then True else False
-isStable _ = False
+isStable One         = True
+isStable Nat         = True
+isStable (AL _)      = True
+isStable (Always _)  = True
+isStable (Prod T T') = isStable T && isStable T'
+isStable (Sum T T')  = isStable T && isStable T'
+isStable _           = False
 
-
-isValue :: Type -> Bool
+isValueType :: Type -> Bool
+isValue One         = True
+isValue Nat         = True
+isValue (Prod T T') = isValue T && isValue T'
+isValue (Sum T T')  = isValue T && isValue T'
+isValue _           = False
 
 -- TERMS
-data Term = Var Var                     -- variable
+data Term = Variable Var                 -- variable
+          | Unit                        -- unit
           | Zero                        -- the constant 0 always has type Nat
-          | Unit                        -- unit                     
           | Suc Term                    -- +1 (suc t alays has type Nat)
           | Pair Term Term              -- pair (has type Tuple)
           | In Int Term                 -- sum injection (corresponds to Left and Right in Haskell)
@@ -87,5 +90,15 @@ data Term = Var Var                     -- variable
           | Wait Chan                   -- InputChannel must be P or BP
           | Read Chan                   -- InputChannel must be B or BP
 
--- Todo: Is a term a value (cant be reduced more)? (Is it even important?)
+-- Check if a term is a value (can't be reduced further)
 isValue :: Term -> Bool
+isValue (Variable _) = True
+isValue Unit         = True
+isValue Zero         = True
+isValue (Suc v)      = isValue v
+isValue (Lambda _ _) = True
+isValue (Pair v w)   = isValue v && isValue w
+isValue (In _ v)     = isValue v
+isValue (Wait _)     = True
+isValue (Box _)      = True
+isValue _            = False
