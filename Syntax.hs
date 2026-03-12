@@ -1,23 +1,19 @@
 module Syntax where
 
 -- INPUT CHANNELS
-data Chan = P Type      -- push channel
-          | B Type      -- buffered channel
-          | BP Type     -- buffered push channel
+data ChanClass = Push
+               | Buffered
+               | BufferedPush
 
-chanType :: Chan -> Type
-chanType (P T)  = T
-chanType (B T)  = T
-chanType (BP T) = T
-
-chanClass :: Chan -> String
-chanClass (P _)  = "Push"
-chanClass (B _)  = "Buffered"
-chanClass (BP _) = "BufferedPush"
+data Chan = Chan { chanClass :: ChanClass, chanType :: Type }
 
 isPush :: Chan -> Bool
-isPush (B _) = False
-isPush _     = True
+isPush (Chan Buffered _) = False
+isPush _                 = True
+
+isBuff :: Chan -> Bool
+isPush (Chan Push _) = False
+isPush _             = True
 
 -- CLOCKS
 data ClockExpr = ClockOf Term
