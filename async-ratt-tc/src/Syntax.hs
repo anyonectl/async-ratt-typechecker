@@ -11,14 +11,14 @@ data Chan
     | PushBuf Type
 
 isPush :: Chan -> Bool
-isPush (Push t) = True
+isPush (Push t)    = True
 isPush (PushBuf t) = True
-isPush (Buf t) = False
+isPush (Buf t)     = False
 
 isBuf :: Chan -> Bool
-isBuf (Buf t) = True
+isBuf (Buf t)     = True
 isBuf (PushBuf t) = True
-isBuf (Push t) = False
+isBuf (Push t)    = False
 
 -- Relevant for `wait` and `read`
 chanClass :: Chan -> String -> Bool
@@ -75,7 +75,7 @@ data Injection  = Inl | Inr
 data Projection = Fst | Snd
 
 data Term 
-    = TVar    Var                   -- x
+    = TVar   Var                    -- x
     | UniVal                        -- ()
     | Zero                          -- 0
     | Suc    Term                   -- Successor 
@@ -87,7 +87,7 @@ data Term
     | App    Term Term              -- s t  
     | Case   Term Var Term Var Term -- OK
     | Delay  ClockExpr Term         -- OK
-    | Adv    Term                   -- OK
+    | Adv    Term                   -- tic
     | AdvAL  Term                   -- OK
     | Select Term Term 
     | BoxVal Term                   -- only value
@@ -96,7 +96,7 @@ data Term
     | Head   Term                   -- head t  (requires t : Sig A) 
     | Tail   Term                   -- tail t  (requires t : Sig A)
     | Cons   Term Term              -- s :: t  (requires s : A, t : ⊛∃(Sig A))
-    | Read Chan                     -- do we need lexier here to parse chan (which at this point is a) string? 
+    | Read   Chan                   -- do we need lexier here to parse chan (which at this point is a) string? 
 
 -- relevant for `advance` and `select`
 isValue :: Term -> Bool
@@ -107,6 +107,5 @@ isValue (Suc v)         = isValue v
 isValue (Lambda x t)    = isValue t 
 isValue (Pair v w)      = isValue v && isValue w
 isValue (Inj _ v)       = isValue v
-isValue (Head v)        = True -- since into 
 isValue (BoxVal t)      = True -- t is term, not value so don't need to recurse
 isValue _               = False -- Proj, Let, App, Case, Delay, Adv, AdvAL, Select, Unbox, Never, Out/Tail, Read
