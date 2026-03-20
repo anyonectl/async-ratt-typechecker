@@ -74,7 +74,7 @@ isValueType _           = False
 
 -- TERMS
 data Term = Variable Var                -- variable
-          | UnitVal                   -- unit
+          | UnitVal                     -- unit
           | Zero                        -- the constant 0 always has type Nat
           | Suc Term                    -- +1 (suc t alays has type Nat)
           | Pair Term Term              -- pair (has type Tuple)

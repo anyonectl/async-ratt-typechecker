@@ -1,111 +1,121 @@
 module Syntax where
 
--- VARIABLES
-type Var = String 
+-- INPUT CHANNELS
+data ChanClass = Push
+               | Buffered
+               | BufferedPush
 
-
--- INPUT CHANNELS 
-data Chan
-    = Push Type
-    | Buf Type
-    | PushBuf Type
+-- If we represent input channels as records, 
+-- we can directly access a channel's class and type
+data Chan = Chan { chanClass :: ChanClass, chanType :: Type }
 
 isPush :: Chan -> Bool
-isPush (Push t)    = True
-isPush (PushBuf t) = True
-isPush (Buf t)     = False
+isPush (Chan Push _)         = True
+isPush (Chan BufferedPush _) = True
+isPush (Chan Buffered _)     = False
 
-isBuf :: Chan -> Bool
-isBuf (Buf t)     = True
-isBuf (PushBuf t) = True
-isBuf (Push t)    = False
+isBuff :: Chan -> Bool
+isBuff (Chan Push _)         = False
+isBuff (Chan BufferedPush _) = True
+isBuff (Chan Buffered _)     = True
 
--- Relevant for `wait` and `read`
-chanClass :: Chan -> String -> Bool
-chanClass chan "b" = isBuf chan
-chanClass chan "p" = isPush chan
+-- CLOCKS
+data ClockExpr = Clock Term
+               | ClockUnion ClockExpr ClockExpr
 
+-- VARIABLES
+newtype Var = Var String
 
--- CLOCK EXPRESSIONS
-data ClockExpr 
-    = Clock Term
-    | SqUnion ClockExpr ClockExpr
-
-
--- TYPING CONTEXT
+-- TYPING CONTEXTS
 type SCtxt = [(Var, Type)]
 
 data Ctxt
     = EmptyCtxt
-    | Ctxt (SCtxt, [(SCtxt, ClockExpr)]) 
+    | Ctxt (SCtxt, [(SCtxt, ClockExpr)])
 
+-- Alternative:
+-- type SimpleCtx = [(Var, Type)]
+
+-- type Ctx = (SimpleCtx, [(ClockExpr, SimpleCtx)])
+
+-- -- isEmptyCtx :: Ctx -> Bool
+-- -- isEmptyCtx ctx = ctx = ([], [])
+
+-- -- Add variable binding  x : A to a typing context
+-- addVarBind :: Var -> Type -> Ctx -> Ctx
+-- addVarBind v t (simple, ticked) = ((v, t) : simple, ticked)
+
+-- -- Add a tick on some clock to a typing context
+-- addTick :: ClockExpr -> Ctx -> Ctx
+-- addTick cl (simple, ticked) = ([], (cl, simple) : ticked)
+
+-- -- lookupType :: Var -> Ctx -> Type
+-- -- lookupType v ctx = ???
 
 -- TYPES
-data Type 
-    = Unit                     
-    | Nat
-    | Prod Type Type
-    | Sum Type Type
-    | Fun Type Type 
-    | EL Type           -- ⊛∃ A
-    | AL Type           -- ⊛∀ A
-    | Box Type          -- □ A
-    | Sig Type          -- Sig A
-    | Wait Chan
+data Type = Unit                        -- simplest possible type, with exactly one value: () (unit)
+          | Nat                         -- type of non-negative integers 0, 1, 2, ...
+          | Prod Type Type              -- A x B is a pair (2-tuple)
+          | Sum Type Type               -- A + B - the type of values that are EITHER from A or from B
+          | Fun Type Type               -- type of functions from A to B (lambda)
+          | EL Type                     -- delayed computation on a local clock (sometime later); a pair of 1) a clock, and 2) a suspended computation that produces a value of type A the next time the clock ticks
+          | AL Type                     -- delay on the global clock (anytime later); a value of type this AL type is a computation that will produce a value of type A after any clock ticks
+          | Box Type                    -- type of a timeless computation (the stable modal operator, pronounced 'box')
+          | Sig Type                    -- Sig A is a signal of type A
 
 isStable :: Type -> Bool
 isStable Unit        = True
 isStable Nat         = True
-isStable (Prod s s') = isStable s && isStable s'
-isStable (Sum s s')  = isStable s && isStable s'
+isStable (Prod t t') = isStable t && isStable t'
+isStable (Sum t t')  = isStable t && isStable t'
 isStable (AL _)      = True
 isStable (Box _)     = True
-isStable _           = False -- Fun, EL 
+isStable _           = False
 
 isValueType :: Type -> Bool
 isValueType Unit        = True
 isValueType Nat         = True
-isValueType (Prod s s') = isValueType s && isValueType s'
-isValueType (Sum s s')  = isValueType s && isValueType s'
-isValueType _           = False -- Fun, EL, AL, Box
-
+isValueType (Prod t t') = isValueType t && isValueType t'
+isValueType (Sum t t')  = isValueType t && isValueType t'
+isValueType _           = False
 
 -- TERMS
-data Injection  = Inl | Inr
+data Term = Variable Var                -- variable
+          | UnitVal                     -- unit
+          | Zero                        -- the constant 0 always has type Nat
+          | Suc Term                    -- +1 (suc t alays has type Nat)
+          | Pair Term Term              -- pair (has type Tuple)
+          | Inj Injection Term          -- sum injection (corresponds to Left and Right in Haskell)
+          | Proj Projection Term        -- projection (extracts one component from a pair, like fst / snd in Haskell)
+          | Let Var Term Term           -- let binding (how: need a type to represent variables)
+          | Lambda Var Term             -- function (lambda x.t)
+          | App Term Term               -- function application (apply t to t')
+          | Case Term Var Term Var Term -- case analysis (pattern matching on a sum type)
+          | Delay ClockExpr Term        -- has type EL A
+          | Adv Term                    -- Term must be a value
+          | AdvAL Term                  -- advance a anytime-later computation
+          | Select Term Term            -- synchronising two delayed computations / find out which clock fired
+          | Always Term                 -- create a stable computation
+          | Unbox Term                  -- use a stable computation
+          | Never
+          | Wait Chan                   -- InputChannel must be P or BP
+          | Read Chan                   -- InputChannel must be B or BP
+          | Head Term                   
+          | Tail Term
+          | Cons Term Term
+
+data Injection = InLeft | InRight
 data Projection = Fst | Snd
 
-data Term 
-    = TVar   Var                    -- x
-    | UniVal                        -- ()
-    | Zero                          -- 0
-    | Suc    Term                   -- Successor 
-    | Lambda Var Term               -- x . t 
-    | Pair   Term Term              -- (s,t)
-    | Inj    Injection Term         -- left or right
-    | Proj   Projection Term        -- fst or snd
-    | Let    Var Term Term          -- 
-    | App    Term Term              -- s t  
-    | Case   Term Var Term Var Term -- OK
-    | Delay  ClockExpr Term         -- OK
-    | Adv    Term                   -- tic
-    | AdvAL  Term                   -- OK
-    | Select Term Term 
-    | BoxVal Term                   -- only value
-    | Unbox  Term                   -- OK
-    | Never                         -- OK
-    | Head   Term                   -- head t  (requires t : Sig A) 
-    | Tail   Term                   -- tail t  (requires t : Sig A)
-    | Cons   Term Term              -- s :: t  (requires s : A, t : ⊛∃(Sig A))
-    | Read   Chan                   -- do we need lexier here to parse chan (which at this point is a) string? 
-
--- relevant for `advance` and `select`
+-- Check if a term is a value (can't be reduced further) - relevant for `advance` and `select`
 isValue :: Term -> Bool
-isValue (TVar v)        = True -- x
-isValue UniVal          = True -- ()
-isValue Zero            = True -- 0
-isValue (Suc v)         = isValue v
-isValue (Lambda x t)    = isValue t 
-isValue (Pair v w)      = isValue v && isValue w
-isValue (Inj _ v)       = isValue v
-isValue (BoxVal t)      = True -- t is term, not value so don't need to recurse
-isValue _               = False -- Proj, Let, App, Case, Delay, Adv, AdvAL, Select, Unbox, Never, Out/Tail, Read
+isValue (Variable _) = True
+isValue UnitVal      = True
+isValue Zero         = True
+isValue (Suc v)      = isValue v
+isValue (Pair v w)   = isValue v && isValue w
+isValue (Inj _ v)    = isValue v
+isValue (Lambda _ _) = True
+isValue (Always _)   = True
+isValue (Wait _)     = True
+isValue _            = False
