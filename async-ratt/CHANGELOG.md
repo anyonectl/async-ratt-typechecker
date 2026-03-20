@@ -1,4 +1,4 @@
-# Revision history for async-ratt-tc
+# Revision history for async-ratt
 
 ## 0.1.0.0 -- YYYY-mm-dd
 
