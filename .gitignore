@@ -1,4 +1,5 @@
 ### Project specifics ###
+Figures/
 .vscode/
 
 # Created by https://www.toptal.com/developers/gitignore/api/haskell,visualstudiocode,macos,linux,windows,java,dotnetcore,fsharp,git,python,jupyternotebooks,latex,gradle
