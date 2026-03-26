@@ -1,9 +1,42 @@
 module TypeCheckerSpec where
+
 import Test.Hspec
 import TypeChecker
-
+import Syntax
+import Context
 
 spec :: Spec
 spec = describe "TypeChecker" $ do
-    it "TODO" $
-        1 `shouldBe` 1
+
+  let tickedCxt = Cxt ([], [([ (Var "x", Nat) ], Clock Zero)])
+  let simpleCxt = Cxt ([ (Var "x", Nat) ], [])
+  let emptyCxt  = EmptyCxt
+
+  -- infer
+  describe "infer" $ do
+
+    -- variables
+    it "infers variable in simple context" $
+      infer simpleCxt (Variable (Var "x")) `shouldBe` Right Nat
+
+    it "infers variable in ticked context" $
+      infer tickedCxt (Variable (Var "x")) `shouldBe` Right Nat
+
+    it "returns UnboundVar for missing variable" $
+      infer simpleCxt (Variable (Var "y")) `shouldBe` Left (ContextError (VariableNotFound (Var "y")))
+
+    it "returns EmptyContext error on empty context" $
+      infer emptyCxt (Variable (Var "x")) `shouldBe` Left (ContextError (ContextIsEmpty "cannot lookup in empty context"))
+
+  -- check
+  describe "check" $ do
+
+    -- variables
+    it "checks variable in simple context against correct type" $
+      check simpleCxt (Variable (Var "x")) Nat `shouldBe` Right Nat
+
+    it "fails when checking variable against wrong type" $
+      check simpleCxt (Variable (Var "x")) bool `shouldBe` Left (TypeMismatch { expected = bool, got = Nat })
+
+    it "checks variable in ticked context against correct type" $
+      check tickedCxt (Variable (Var "x")) Nat `shouldBe` Right Nat

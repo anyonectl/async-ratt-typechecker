@@ -5,6 +5,7 @@ data Chan
     = Push Type
     | Buf Type
     | PushBuf Type
+    deriving (Eq, Show)
 
 isPush :: Chan -> Bool
 isPush (Push _)    = True
@@ -16,27 +17,32 @@ isBuf (Buf _)     = True
 isBuf (PushBuf _) = True
 isBuf (Push _)    = False
 
--- Relevant for `wait` and `read`
-chanClass :: Chan -> String -> Bool
-chanClass chan "b" = isBuf chan
-chanClass chan "p" = isPush chan
+-- -- Relevant for `wait` and `read`
+-- chanClass :: Chan -> String -> Bool
+-- chanClass chan "b" = isBuf chan
+-- chanClass chan "p" = isPush chan
 
 
 -- CLOCKS
 data ClockExpr 
     = Clock Term
     | ClockUnion ClockExpr ClockExpr
+    deriving (Eq, Show)
 
 
 -- VARIABLES
-newtype Var = Var String
+-- !!!
+-- TODO consider if we should implement this as type to not get crazy from writing tests.. 
+-- !!!
+newtype Var = Var String deriving (Eq, Show)
 
 -- TYPING CONTEXTS
-type SCxt = [(Var, Type)]
+type SCxt = [(Var, Type)] 
 
 data Cxt
-    = EmptyCtxt
-    | Ctxt (SCxt, [(SCxt, ClockExpr)])
+    = EmptyCxt
+    | Cxt (SCxt, [(SCxt, ClockExpr)])
+    deriving (Eq, Show)
 
 -- Alternative:
 -- type SimpleCtx = [(Var, Type)]
@@ -57,11 +63,11 @@ data Cxt
 -- -- lookupType :: Var -> Ctx -> Type
 -- -- lookupType v ctx = ???
 
+
 -- TYPES
 data Type 
     = Unit                        -- simplest possible type, with exactly one value: () (unit)
-    | Nat                         -- type of non-negative integers 0, 1, 2, ...
-        
+    | Nat                         -- type of non-negative integers 0, 1, 2, ... 
     | Prod Type Type              -- A x B is a pair (2-tuple)
     | Sum Type Type               -- A + B - the type of values that are EITHER from A or from B
     | Fun Type Type               -- type of functions from A to B (lambda)
@@ -69,6 +75,7 @@ data Type
     | AL Type                     -- delay on the global clock (anytime later); a value of type this AL type is a computation that will produce a value of type A after any clock ticks
     | Box Type                    -- type of a timeless computation (the stable modal operator, pronounced 'box')
     | Sig Type                    -- Sig A is a signal of type A
+    deriving (Eq, Show)
 
 isStable :: Type -> Bool
 isStable Unit        = True
@@ -85,6 +92,7 @@ isValueType Nat         = True
 isValueType (Prod t t') = isValueType t && isValueType t'
 isValueType (Sum t t')  = isValueType t && isValueType t'
 isValueType _           = False
+
 
 -- TERMS
 data Term 
@@ -114,9 +122,10 @@ data Term
     | Head Term                   
     | Tail Term
     | Cons Term Term
+    deriving (Eq, Show)
 
-data Injection = InLeft | InRight
-data Projection = Fst | Snd
+data Injection = InLeft | InRight deriving (Eq, Show)
+data Projection = Fst | Snd deriving (Eq, Show)
 
 true :: Term
 true = Inj InLeft UnitVal
@@ -138,7 +147,6 @@ isFalse _                     = False
 isBoolType :: Type -> Bool
 isBoolType (Sum Unit Unit) = True  -- Checks if it's the sum of two Units
 isBoolType _               = False -- Otherwise, it's not a boolean type
-
 
 -- Check if a term is a value (can't be reduced further) - relevant for `advance` and `select`
 isValue :: Term -> Bool

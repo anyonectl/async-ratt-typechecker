@@ -20,6 +20,7 @@ library
     import:           warnings
     exposed-modules:  Syntax
                     , TypeChecker
+                    , Context
     build-depends:    base >=4.7 && <5,
                       array
     hs-source-dirs:   src

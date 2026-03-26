@@ -2,61 +2,54 @@ module TypeChecker where
 
 import Syntax
 import Context
-import Data.Data (typeOf2)
 
--- from the paper on Bidirectional Typing Rules
-data TypeError -- Should all errors be in Syntax.hs, or have errors for type checker in Typechecker.hs?
-    = TypeMismatch { expected :: Type, got :: Type }
-    | UnboundVar     String     -- variable not in context
-    | CheckInferFail Term Type  -- inferred type didn't match
-    | Other string -- for now we can add a message to the error and then generalise them as we go.. 
-    -- ... probably add more later
+data TypeError
+  = TypeMismatch  { expected :: Type, got :: Type }
+  | UnboundVar    String
+  | ContextError  ContextError
+  | TypeError     String
+  deriving (Eq, Show)
 
 -- INFER
--- “t’s type can be inferred to be τ in context Γ”
-infer :: Ctx -> Term -> Either TypeError Type
+infer :: Cxt -> Term -> Either TypeError Type
+infer cxt (Variable x) =
+  case lookup' cxt x of
+    Right ty -> Right ty
+    Left err -> Left (ContextError err)
 
-infer ctx (Var x) =
-  case lookup'' x ctx of
-    Just typ -> Right ty
-    Nothing -> Left (UnboundVar x)
+infer cxt (Ann t ty) =
+  check cxt t ty
 
-infer ctx (Ann t ty) =
-  check ctx t ty
-
-infer ctx (If t1 t2 t3) = do
-  ty1 <- infer ctx t1
-  case ty1 of
-    BoolTy -> do
-        ty2 <- infer ctx t2
-        ty3 <- infer ctx t3
-        if ty2 == ty3
-          then Right ty2
-          else Left Other "if-branches did not match type"
-    _ -> Left Other "Could not infer a boolean condition"
-
-infer ctx (Case t1 x1 t2 x2 t3) = do
-  ty1 <- infer ctx t1
-  case ty1 of
-    bool -> do                    -- Check if ty1 is of type 'bool'
-      ty2 <- infer ctx t2
-      ty3 <- infer ctx t3
+infer cxt (Case t1 _ t2 _ t3) = do
+  ty1 <- infer cxt t1
+  if ty1 == bool then do 
+      ty2 <- infer cxt t2
+      ty3 <- infer cxt t3
       if ty2 == ty3
-        then Right ty2           -- Both branches return the same type
-        else Left Other "Case branches did not match type"
-    _ -> Left Other "Expression in Case must be of boolean type"
+        then Right ty2
+        else Left (TypeError "Case branches did not match type")
+    else Left (TypeError "t1 in Case is not a boolean")
+
+infer _ _ = Left (TypeError "TODO: implement the rest")
 
 -- CHECK
--- “t can be checked to have the given type”
-check :: Ctx -> Term -> Type -> Either TypeError Type
+check :: Cxt -> Term -> Type -> Either TypeError Type
+check cxt (Case t1 _ t2 _ t3) ty =
+  case (check cxt t1 bool, check cxt t2 ty, check cxt t3 ty) of
+    (Right _, Right _, Right _) -> Right ty
+    _                           -> Left (TypeError "Case branches failed to check") -- TODO expand to pinpoint which branch failed
 
-check ctx (If t1 t2  t3) ty =
-  case (check ctx t1 BoolTy, check ctx t2 ty, check ctx t3 ty) of
-    (Just _, Just _, Just _) -> Just ty
-    _                        -> Nothing
+-- Is this better option? 
+-- check cxt (Case t1 _ t2 _ t3) ty = do
+--   check cxt t1 bool
+--   check cxt t2 ty
+--   check cxt t3 ty
+--   Right ty
 
-check ctx t ty = -- checking mode subsumes inference mode
-  case infer ctx t of
-  Just ty' -> if ty == ty' then Just ty
-              else Nothing
-  _        -> Nothing
+check cxt t ty =
+  case infer cxt t of
+    Right ty' ->
+      if ty == ty'
+        then Right ty
+        else Left (TypeMismatch { expected = ty, got = ty' })
+    Left err -> Left err
