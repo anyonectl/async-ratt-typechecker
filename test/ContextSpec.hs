@@ -1,4 +1,4 @@
-module TypeCheckerSpec where
+module ContextSpec where
 import Test.Hspec
 import TypeChecker
 import Syntax
