@@ -8,35 +8,35 @@ import Context
 spec :: Spec
 spec = describe "TypeChecker" $ do
 
-  let tickedCxt = Cxt ([], [([ (Var "x", Nat) ], Clock Zero)])
-  let simpleCxt = Cxt ([ (Var "x", Nat) ], [])
-  let emptyCxt  = EmptyCxt
+  let tickedCtx = Ctx ([], [([ (Var "x", Nat) ], Clock Zero)])
+  let simpleCtx = Ctx ([ (Var "x", Nat) ], [])
+  let emptyCtx  = EmptyCtx
 
   -- infer
   describe "infer" $ do
 
     -- variables
     it "infers variable in simple context" $
-      infer simpleCxt (Variable (Var "x")) `shouldBe` Right Nat
+      infer simpleCtx (Variable (Var "x")) `shouldBe` Right Nat
 
     it "infers variable in ticked context" $
-      infer tickedCxt (Variable (Var "x")) `shouldBe` Right Nat
+      infer tickedCtx (Variable (Var "x")) `shouldBe` Right Nat
 
     it "returns UnboundVar for missing variable" $
-      infer simpleCxt (Variable (Var "y")) `shouldBe` Left (ContextError (VariableNotFound (Var "y")))
+      infer simpleCtx (Variable (Var "y")) `shouldBe` Left (ContextError (VariableNotFound (Var "y")))
 
     it "returns EmptyContext error on empty context" $
-      infer emptyCxt (Variable (Var "x")) `shouldBe` Left (ContextError (ContextIsEmpty "cannot lookup in empty context"))
+      infer emptyCtx (Variable (Var "x")) `shouldBe` Left (ContextError (ContextIsEmpty "cannot lookup in empty context"))
 
   -- check
   describe "check" $ do
 
     -- variables
     it "checks variable in simple context against correct type" $
-      check simpleCxt (Variable (Var "x")) Nat `shouldBe` Right Nat
+      check simpleCtx (Variable (Var "x")) Nat `shouldBe` Right Nat
 
     it "fails when checking variable against wrong type" $
-      check simpleCxt (Variable (Var "x")) bool `shouldBe` Left (TypeMismatch { expected = bool, got = Nat })
+      check simpleCtx (Variable (Var "x")) bool `shouldBe` Left (TypeMismatch { expected = bool, got = Nat })
 
     it "checks variable in ticked context against correct type" $
-      check tickedCxt (Variable (Var "x")) Nat `shouldBe` Right Nat
+      check tickedCtx (Variable (Var "x")) Nat `shouldBe` Right Nat

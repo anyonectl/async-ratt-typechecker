@@ -37,11 +37,11 @@ data ClockExpr
 newtype Var = Var String deriving (Eq, Show)
 
 -- TYPING CONTEXTS
-type SCxt = [(Var, Type)] 
+type SCtx = [(Var, Type)] 
 
-data Cxt
-    = EmptyCxt
-    | Cxt (SCxt, [(SCxt, ClockExpr)])
+data Ctx
+    = EmptyCtx
+    | Ctx (SCtx, [(SCtx, ClockExpr)])
     deriving (Eq, Show)
 
 -- Alternative:

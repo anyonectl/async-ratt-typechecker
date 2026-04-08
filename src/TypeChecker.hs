@@ -11,20 +11,20 @@ data TypeError
   deriving (Eq, Show)
 
 -- INFER
-infer :: Cxt -> Term -> Either TypeError Type
-infer cxt (Variable x) =
-  case lookup' cxt x of
+infer :: Ctx -> Term -> Either TypeError Type
+infer ctx (Variable x) =
+  case lookup' ctx x of
     Right ty -> Right ty
     Left err -> Left (ContextError err)
 
-infer cxt (Ann t ty) =
-  check cxt t ty
+infer ctx (Ann t ty) =
+  check ctx t ty
 
-infer cxt (Case t1 _ t2 _ t3) = do
-  ty1 <- infer cxt t1
+infer ctx (Case t1 _ t2 _ t3) = do
+  ty1 <- infer ctx t1
   if ty1 == bool then do 
-      ty2 <- infer cxt t2
-      ty3 <- infer cxt t3
+      ty2 <- infer ctx t2
+      ty3 <- infer ctx t3
       if ty2 == ty3
         then Right ty2
         else Left (TypeError "Case branches did not match type")
@@ -33,21 +33,21 @@ infer cxt (Case t1 _ t2 _ t3) = do
 infer _ _ = Left (TypeError "TODO: implement the rest")
 
 -- CHECK
-check :: Cxt -> Term -> Type -> Either TypeError Type
-check cxt (Case t1 _ t2 _ t3) ty =
-  case (check cxt t1 bool, check cxt t2 ty, check cxt t3 ty) of
+check :: Ctx -> Term -> Type -> Either TypeError Type
+check ctx (Case t1 _ t2 _ t3) ty =
+  case (check ctx t1 bool, check ctx t2 ty, check ctx t3 ty) of
     (Right _, Right _, Right _) -> Right ty
     _                           -> Left (TypeError "Case branches failed to check") -- TODO expand to pinpoint which branch failed
 
 -- Is this better option? 
--- check cxt (Case t1 _ t2 _ t3) ty = do
---   check cxt t1 bool
---   check cxt t2 ty
---   check cxt t3 ty
+-- check ctx (Case t1 _ t2 _ t3) ty = do
+--   check ctx t1 bool
+--   check ctx t2 ty
+--   check ctx t3 ty
 --   Right ty
 
-check cxt t ty =
-  case infer cxt t of
+check ctx t ty =
+  case infer ctx t of
     Right ty' ->
       if ty == ty'
         then Right ty
