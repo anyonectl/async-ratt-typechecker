@@ -60,7 +60,7 @@ infer ctx (App f t) = do
     Fun a b -> do
       check ctx t a
       Right b
-    _ -> Left (OtherErr "Application expected function type")
+    _ -> Left (OtherError "Application expected function type")
 
 
 infer _ _ = Left (OtherError "Infer failed..")
