@@ -92,6 +92,7 @@ data Term
     | Select Term Term            -- synchronising two delayed computations / find out which clock fired. Can only be applied to values
     | Always Term                 -- create a stable computation
     | Unbox Term                  -- use a stable computation
+    | Fix Var Term                -- recursion (guarded?)
     | Never
     | Wait Chan                   -- InputChannel must be P or BP
     | Read Chan                   -- InputChannel must be B or BP
@@ -100,8 +101,8 @@ data Term
     | Cons Term Term
     deriving (Eq, Show)
 
-data Injection = InLeft | InRight deriving (Eq, Show)
-data Projection = Fst | Snd deriving (Eq, Show)
+data Injection  = InLeft | InRight deriving (Eq, Show)
+data Projection = Fst    | Snd     deriving (Eq, Show)
 
 true :: Term
 true = Inj InLeft UnitVal

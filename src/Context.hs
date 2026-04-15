@@ -44,6 +44,12 @@ addTick :: Ctx -> ClockExpr -> Ctx
 addTick EmptyCtx cl               = Ctx ([], [([], cl)])
 addTick (Ctx (simple, ticked)) cl = Ctx ([], (simple, cl):ticked)
 
+makeStable :: Ctx -> Ctx
+makeStable EmptyCtx = EmptyCtx 
+-- TODO implement some function to make the context stable. Should follow rule 30..32 in Fig 3..
+makeStable (Ctx (simple, ticked)) = error "TODO"
+
+
 -- Advance value of exist later
 -- advance :: Ctx -> 
 -- flip the addTick

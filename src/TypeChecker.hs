@@ -13,10 +13,53 @@ data TypeError
 -- INFER
 ---------------------------
 infer :: Ctx -> Term -> Either TypeError Type
+
+-- Variable
 infer ctx (Variable x) =
   case lookup' ctx x of
     Right ty -> Right ty
     Left err -> Left (CtxError err)
+
+-- UnitVal
+infer _ UnitVal = Right Unit
+
+-- Zero
+infer _ Zero = Right Nat 
+
+-- Succsessor
+infer ctx (Suc t) = do
+  ty <- infer ctx t
+  if ty == Nat
+    then Right Nat
+    else Left (TypeMismatch { expected = Nat, got = ty })
+
+-- Pair (check only)
+-- Injection (check only)
+
+-- Projection
+infer ctx (Proj i t) = do
+  ty <- infer ctx t
+  case (i, ty) of 
+    (Fst, Prod a _) -> Right a
+    (Snd, Prod _ b) -> Right b
+    _               -> Left (OtherError "Projection expected product type")
+
+-- Let
+infer ctx (Let x t1 t2) = do
+  ty1 <- infer ctx t1
+  let ctx' = addVarBind ctx x ty1
+  infer ctx' t2
+
+-- Lambda (check only)
+
+-- Application
+infer ctx (App f t) = do
+  fTy <- infer ctx f
+  case fTy of
+    Fun a b -> do
+      check ctx t a
+      Right b
+    _ -> Left (OtherError "Application expected function type")
 
 -- Case
 infer ctx (Case t x1 t1 x2 t2) = do
@@ -32,42 +75,15 @@ infer ctx (Case t x1 t1 x2 t2) = do
         else Left (OtherError "Case branches have different types")
     _ -> Left (OtherError "Case expected sum type as argument")
     
--- Let
-infer ctx (Let x t1 t2) = do
-  ty1 <- infer ctx t1
-  let ctx' = addVarBind ctx x ty1
-  infer ctx' t2
-
--- Projection (Prod type) 
-infer ctx (Proj i t) = do
-  ty <- infer ctx t
-  case (i, ty) of 
-    (Fst, Prod a _) -> Right a
-    (Snd, Prod _ b) -> Right b
-    _               -> Left (OtherError "Projection expected product type")
-
--- Succsessor
-infer ctx (Suc t) = do
-  ty <- infer ctx t
-  if ty == Nat
-    then Right Nat
-    else Left (TypeMismatch { expected = Nat, got = ty })
-
--- Application
-infer ctx (App f t) = do
-  fTy <- infer ctx f
-  case fTy of
-    Fun a b -> do
-      check ctx t a
-      Right b
-    _ -> Left (OtherError "Application expected function type")
-
 -- Delay  
+
 -- Advance
+
 -- Advance AL
 -- Select
 -- Always
 -- Unbox
+-- Fix (check only)
 -- Never
 -- Wait
 -- Read
@@ -86,17 +102,29 @@ infer _ _ = Left (OtherError "Infer failed..")
 ---------------------------
 check :: Ctx -> Term -> Type -> Either TypeError Type
 
--- Case
-check ctx (Case t x1 t1 x2 t2) ty = do
-  arg <- infer ctx t
-  case arg of
-    Sum a1 a2 -> do               -- check that t is a sum type
-      let ctx1 = addVarBind ctx x1 a1
-      let ctx2 = addVarBind ctx x2 a2
-      check ctx1 t1 ty
-      check ctx2 t2 ty -- the error checking is better when using infer..? 
-      Right ty                    -- then for each extended context branch, check that the type of t1 and t2 are ty
-    _ -> Left (OtherError "Case argument is not a sum type")
+-- Variable (infer only)
+-- UnitVal (infer only)
+-- Zero (infer only)
+-- Successor (infer only)
+
+-- Pair
+check ctx (Pair t1 t2) ty =
+  case ty of
+    Prod a b -> do
+      check ctx t1 a
+      check ctx t2 b
+      Right ty
+    _       -> Left (OtherError "Pair expected a product type")
+
+-- Injection (Sum type)
+check ctx (Inj rl t) ty =
+  case ty of
+    Sum a b -> case rl of
+      InLeft  -> check ctx t a
+      InRight -> check ctx t b
+    _         -> Left (OtherError "Injection expected sum type")
+
+-- Projection (infer only)
 
 -- Let
 check ctx (Let x t1 t2) ty = do -- this is just like the Sestoft book (yay!)
@@ -110,22 +138,19 @@ check ctx (Lam x t) ty =
     Fun a b -> check (addVarBind ctx x a) t b
     _       -> Left (OtherError "Lambda expected function type")
 
--- Injection (Sum type)
-check ctx (Inj rl t) ty =
-  case ty of
-    Sum a b -> case rl of
-      InLeft  -> check ctx t a
-      InRight -> check ctx t b
-    _         -> Left (OtherError "Injection expected sum type")
+-- Application (infer only)
 
--- Pair
-check ctx (Pair t1 t2) ty =
-  case ty of
-    Prod a b -> do
-      check ctx t1 a
-      check ctx t2 b
-      Right ty
-    _       -> Left (OtherError "Pair expected a product type")
+-- Case
+check ctx (Case t x1 t1 x2 t2) ty = do
+  arg <- infer ctx t
+  case arg of
+    Sum a1 a2 -> do               -- check that t is a sum type
+      let ctx1 = addVarBind ctx x1 a1
+      let ctx2 = addVarBind ctx x2 a2
+      check ctx1 t1 ty
+      check ctx2 t2 ty -- the error checking is better when using infer..? 
+      Right ty                    -- then for each extended context branch, check that the type of t1 and t2 are ty
+    _ -> Left (OtherError "Case argument is not a sum type")
 
 -- Delay
 -- Advance
@@ -133,14 +158,19 @@ check ctx (Pair t1 t2) ty =
 -- Select
 -- Always
 -- Unbox
+
+-- Fix
+check ctx (Fix x t) ty = do
+  let stableCtx = makeStable ctx
+  let ctx' = addVarBind stableCtx x (AL ty)
+  check ctx' t ty
+
 -- Never
 -- Wait
 -- Read
 -- Head
 -- Tail
 -- Cons
-
--- Add new implementations above this comment
 
 -- Default
 check ctx t ty =
