@@ -38,9 +38,7 @@ infer ctx (Let x t1 t2) = do
   let ctx' = addVarBind ctx x ty1
   infer ctx' t2
 
-
 -- Projection (Prod type) 
--- TODO ask about rule: should the two terms in Prod a b be of same type A1 and A2?
 infer ctx (Proj i t) = do
   ty <- infer ctx t
   case (i, ty) of 
@@ -48,12 +46,14 @@ infer ctx (Proj i t) = do
     (Snd, Prod _ b) -> Right b
     _               -> Left (OtherError "Projection expected product type")
 
+-- Succsessor
 infer ctx (Suc t) = do
   ty <- infer ctx t
   if ty == Nat
     then Right Nat
     else Left (TypeMismatch { expected = Nat, got = ty })
 
+-- Application
 infer ctx (App f t) = do
   fTy <- infer ctx f
   case fTy of
@@ -62,7 +62,22 @@ infer ctx (App f t) = do
       Right b
     _ -> Left (OtherError "Application expected function type")
 
+-- Delay  
+-- Advance
+-- Advance AL
+-- Select
+-- Always
+-- Unbox
+-- Never
+-- Wait
+-- Read
+-- Head
+-- Tail
+-- Cons
 
+-- Add new implementations above this comment
+
+-- Default
 infer _ _ = Left (OtherError "Infer failed..")
 
 
@@ -111,6 +126,21 @@ check ctx (Pair t1 t2) ty =
       check ctx t2 b
       Right ty
     _       -> Left (OtherError "Pair expected a product type")
+
+-- Delay
+-- Advance
+-- Advance AL
+-- Select
+-- Always
+-- Unbox
+-- Never
+-- Wait
+-- Read
+-- Head
+-- Tail
+-- Cons
+
+-- Add new implementations above this comment
 
 -- Default
 check ctx t ty =

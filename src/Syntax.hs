@@ -17,10 +17,11 @@ isBuf (Buf _)     = True
 isBuf (PushBuf _) = True
 isBuf (Push _)    = False
 
--- -- Relevant for `wait` and `read`
--- chanClass :: Chan -> String -> Bool
--- chanClass chan "b" = isBuf chan
--- chanClass chan "p" = isPush chan
+-- Relevant for `wait` and `read`
+chanClass :: Chan -> String -> Bool
+chanClass chan "b" = isBuf chan
+chanClass chan "p" = isPush chan
+chanClass _ _      = False
 
 
 -- CLOCKS
@@ -31,10 +32,7 @@ data ClockExpr
 
 
 -- VARIABLES
--- !!!
--- TODO consider if we should implement this as type to not get crazy from writing tests.. 
--- !!!
-newtype Var = Var String deriving (Eq, Show)
+type Var = String
 
 -- TYPING CONTEXTS
 type SCtx = [(Var, Type)] 
