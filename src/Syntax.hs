@@ -44,25 +44,6 @@ data Ctx
     | Ctx (SCtx, [(SCtx, ClockExpr)])
     deriving (Eq, Show)
 
--- Alternative:
--- type SimpleCtx = [(Var, Type)]
-
--- type Ctx = (SimpleCtx, [(ClockExpr, SimpleCtx)])
-
--- -- isEmptyCtx :: Ctx -> Bool
--- -- isEmptyCtx ctx = ctx = ([], [])
-
--- -- Add variable binding  x : A to a typing context
--- addVarBind :: Var -> Type -> Ctx -> Ctx
--- addVarBind v t (simple, ticked) = ((v, t) : simple, ticked)
-
--- -- Add a tick on some clock to a typing context
--- addTick :: ClockExpr -> Ctx -> Ctx
--- addTick cl (simple, ticked) = ([], (cl, simple) : ticked)
-
--- -- lookupType :: Var -> Ctx -> Type
--- -- lookupType v ctx = ???
-
 
 -- TYPES
 data Type 
@@ -106,10 +87,7 @@ data Term
     | Let Var Term Term           -- let binding (how: need a type to represent variables)
     | Lam Var Term                -- function (lambda x.t)
     | App Term Term               -- function application (apply t to t')
-    | Case Term Var Term Var Term -- case analysis (pattern matching on a sum type)
-
-    | Ann Term Type               -- Type annotation       (Temporary add for bidirectional typing rules)
-    
+    | Case Term Var Term Var Term -- case analysis (pattern matching on a sum type)    
     | Delay ClockExpr Term        -- has type EL A
     | Adv Term                    -- Term must be a value
     | AdvAL Term                  -- advance a anytime-later computation

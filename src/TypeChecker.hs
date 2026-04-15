@@ -5,51 +5,116 @@ import Context
 
 data TypeError
   = TypeMismatch  { expected :: Type, got :: Type }
-  | UnboundVar    String
-  | ContextError  ContextError
-  | TypeError     String
+  | CtxError      ContextError
+  | OtherError    String
   deriving (Eq, Show)
 
+---------------------------
 -- INFER
+---------------------------
 infer :: Ctx -> Term -> Either TypeError Type
 infer ctx (Variable x) =
   case lookup' ctx x of
     Right ty -> Right ty
-    Left err -> Left (ContextError err)
+    Left err -> Left (CtxError err)
 
-infer ctx (Ann t ty) =
-  check ctx t ty
-
-infer ctx (Case t1 _ t2 _ t3) = do
+-- Case
+infer ctx (Case t x1 t1 x2 t2) = do
+  ty <- infer ctx t
+  case ty of
+    Sum a1 a2 -> do
+      let ctx1 = addVarBind ctx x1 a1
+      let ctx2 = addVarBind ctx x2 a2
+      ty1 <- infer ctx1 t1
+      ty2 <- infer ctx2 t2
+      if ty1 == ty2
+        then Right ty1
+        else Left (OtherError "Case branches have different types")
+    _ -> Left (OtherError "Case expected sum type as argument")
+    
+-- Let
+infer ctx (Let x t1 t2) = do
   ty1 <- infer ctx t1
-  if ty1 == bool then do 
-      ty2 <- infer ctx t2
-      ty3 <- infer ctx t3
-      if ty2 == ty3
-        then Right ty2
-        else Left (TypeError "Case branches did not match type")
-    else Left (TypeError "t1 in Case is not a boolean")
+  let ctx' = addVarBind ctx x ty1
+  infer ctx' t2
 
-infer _ _ = Left (TypeError "TODO: implement the rest")
 
+-- Projection (Prod type) 
+-- TODO ask about rule: should the two terms in Prod a b be of same type A1 and A2?
+infer ctx (Proj i t) = do
+  ty <- infer ctx t
+  case (i, ty) of 
+    (Fst, Prod a _) -> Right a
+    (Snd, Prod _ b) -> Right b
+    _               -> Left (OtherError "Projection expected product type")
+
+infer ctx (Suc t) = do
+  ty <- infer ctx t
+  if ty == Nat
+    then Right Nat
+    else Left (TypeMismatch { expected = Nat, got = ty })
+
+infer ctx (App f t) = do
+  fTy <- infer ctx f
+  case fTy of
+    Fun a b -> do
+      check ctx t a
+      Right b
+    _ -> Left (OtherErr "Application expected function type")
+
+
+infer _ _ = Left (OtherError "Infer failed..")
+
+
+---------------------------
 -- CHECK
+---------------------------
 check :: Ctx -> Term -> Type -> Either TypeError Type
-check ctx (Case t1 _ t2 _ t3) ty =
-  case (check ctx t1 bool, check ctx t2 ty, check ctx t3 ty) of
-    (Right _, Right _, Right _) -> Right ty
-    _                           -> Left (TypeError "Case branches failed to check") -- TODO expand to pinpoint which branch failed
 
--- Is this better option? 
--- check ctx (Case t1 _ t2 _ t3) ty = do
---   check ctx t1 bool
---   check ctx t2 ty
---   check ctx t3 ty
---   Right ty
+-- Case
+check ctx (Case t x1 t1 x2 t2) ty = do
+  arg <- infer ctx t
+  case arg of
+    Sum a1 a2 -> do               -- check that t is a sum type
+      let ctx1 = addVarBind ctx x1 a1
+      let ctx2 = addVarBind ctx x2 a2
+      check ctx1 t1 ty
+      check ctx2 t2 ty -- the error checking is better when using infer..? 
+      Right ty                    -- then for each extended context branch, check that the type of t1 and t2 are ty
+    _ -> Left (OtherError "Case argument is not a sum type")
 
+-- Let
+check ctx (Let x t1 t2) ty = do -- this is just like the Sestoft book (yay!)
+  ty1 <- infer ctx t1
+  let ctx' = addVarBind ctx x ty1
+  check ctx' t2 ty
+
+-- Lambda
+check ctx (Lam x t) ty =
+  case ty of
+    Fun a b -> check (addVarBind ctx x a) t b
+    _       -> Left (OtherError "Lambda expected function type")
+
+-- Injection (Sum type)
+check ctx (Inj rl t) ty =
+  case ty of
+    Sum a b -> case rl of
+      InLeft  -> check ctx t a
+      InRight -> check ctx t b
+    _         -> Left (OtherError "Injection expected sum type")
+
+-- Pair
+check ctx (Pair t1 t2) ty =
+  case ty of
+    Prod a b -> do
+      check ctx t1 a
+      check ctx t2 b
+      Right ty
+    _       -> Left (OtherError "Pair expected a product type")
+
+-- Default
 check ctx t ty =
   case infer ctx t of
-    Right ty' ->
-      if ty == ty'
-        then Right ty
-        else Left (TypeMismatch { expected = ty, got = ty' })
-    Left err -> Left err
+    Right ty' | ty == ty' -> Right ty
+    Right ty'             -> Left (TypeMismatch { expected = ty, got = ty' })
+    Left err              -> Left err

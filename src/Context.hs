@@ -1,15 +1,11 @@
 module Context where
 
 import Syntax
-{- from Syntax.hs 
-type SCxt = [(Var, Type)]
-data Cxt = EmptyCtxt | Ctxt (SCxt, [(SCxt, ClockExpr)])
--}
 
 data ContextError
   = VariableNotFound Var
   | ContextIsEmpty String
-  | ContextError String
+  | OtherContextError  String
   deriving (Eq, Show)
 
 lookup' :: Ctx -> Var -> Either ContextError Type
@@ -36,17 +32,17 @@ simpleLookup :: SCtx -> Var -> Maybe Type
 simpleLookup [] _     = Nothing
 simpleLookup ((x ,ty):txys) key
   | x == key  = Just ty
-  | otherwise = simpleLookup txys x
+  | otherwise = simpleLookup txys key
 
 -- Add variable binding to simple
-addVarBind :: Var -> Type -> Ctx -> Ctx
-addVarBind v ty EmptyCtx               = Ctx ([(v, ty)], [])
-addVarBind v ty (Ctx (simple, ticked)) = Ctx ((v, ty):simple, ticked)
+addVarBind :: Ctx -> Var -> Type -> Ctx
+addVarBind EmptyCtx v ty                = Ctx ([(v, ty)], [])
+addVarBind (Ctx (simple, ticked)) v ty  = Ctx ((v, ty):simple, ticked)
 
 -- Add tick to context by moving all variable bindings to ticked 
-addTick :: ClockExpr -> Ctx -> Ctx
-addTick cl EmptyCtx               = Ctx ([], [([], cl)])
-addTick cl (Ctx (simple, ticked)) = Ctx ([], (simple, cl):ticked)
+addTick :: Ctx -> ClockExpr -> Ctx
+addTick EmptyCtx cl               = Ctx ([], [([], cl)])
+addTick (Ctx (simple, ticked)) cl = Ctx ([], (simple, cl):ticked)
 
 -- Advance value of exist later
 -- advance :: Ctx -> 
