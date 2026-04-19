@@ -1,6 +1,7 @@
 module Context where
 
 import Syntax
+import Data.Either (Either)
 
 type SimpleCtx = [(Var, Type)]
 
@@ -73,6 +74,12 @@ stableCtx ctx       = Ctx (ctx & removeTicks & removeNonStable, [])
         removeNonStable ((x, ty) : rest)
             | isStableType ty   = (x, ty) : removeNonStable rest
             | otherwise         = removeNonStable rest
+
+-- Remove the latest tick and all variable bindings added after that tick
+-- needed for select, adv
+preTick :: Ctx -> Either ContextError Ctx
+preTick (Ctx (_, (_, simple) : rest)) = Right (Ctx (simple, rest))
+preTick _ = Left (OtherContextError "no ticks in this context")
 
 -- Advance value of exist later
 -- advance :: Ctx -> 
