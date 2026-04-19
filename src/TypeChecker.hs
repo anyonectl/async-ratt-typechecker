@@ -16,7 +16,7 @@ infer :: Ctx -> Term -> Either TypeError Type
 
 -- Variable
 infer ctx (Variable x) =
-  case lookup' ctx x of
+  case lookupType x ctx of
     Right ty -> Right ty
     Left err -> Left (CtxError err)
 
@@ -47,7 +47,7 @@ infer ctx (Proj i t) = do
 -- Let
 infer ctx (Let x t1 t2) = do
   ty1 <- infer ctx t1
-  let ctx' = addVarBind ctx x ty1
+  let ctx' = addVar x ty1 ctx
   infer ctx' t2
 
 -- Lambda (check only)
@@ -66,8 +66,8 @@ infer ctx (Case t x1 t1 x2 t2) = do
   ty <- infer ctx t
   case ty of
     Sum a1 a2 -> do
-      let ctx1 = addVarBind ctx x1 a1
-      let ctx2 = addVarBind ctx x2 a2
+      let ctx1 = addVar x1 a1 ctx
+      let ctx2 = addVar x2 a2 ctx
       ty1 <- infer ctx1 t1
       ty2 <- infer ctx2 t2
       if ty1 == ty2
@@ -129,13 +129,13 @@ check ctx (Inj rl t) ty =
 -- Let
 check ctx (Let x t1 t2) ty = do -- this is just like the Sestoft book (yay!)
   ty1 <- infer ctx t1
-  let ctx' = addVarBind ctx x ty1
+  let ctx' = addVar x ty1 ctx
   check ctx' t2 ty
 
 -- Lambda
 check ctx (Lam x t) ty =
   case ty of
-    Fun a b -> check (addVarBind ctx x a) t b
+    Fun a b -> check (addVar x a ctx) t b
     _       -> Left (OtherError "Lambda expected function type")
 
 -- Application (infer only)
@@ -145,8 +145,8 @@ check ctx (Case t x1 t1 x2 t2) ty = do
   arg <- infer ctx t
   case arg of
     Sum a1 a2 -> do               -- check that t is a sum type
-      let ctx1 = addVarBind ctx x1 a1
-      let ctx2 = addVarBind ctx x2 a2
+      let ctx1 = addVar x1 a1 ctx
+      let ctx2 = addVar x2 a2 ctx
       check ctx1 t1 ty
       check ctx2 t2 ty -- the error checking is better when using infer..? 
       Right ty                    -- then for each extended context branch, check that the type of t1 and t2 are ty
@@ -161,8 +161,7 @@ check ctx (Case t x1 t1 x2 t2) ty = do
 
 -- Fix
 check ctx (Fix x t) ty = do
-  let stableCtx = makeStable ctx
-  let ctx' = addVarBind stableCtx x (AL ty)
+  let ctx' = addVar x (AL ty) (stableCtx ctx)
   check ctx' t ty
 
 -- Never
