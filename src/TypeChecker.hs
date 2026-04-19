@@ -76,30 +76,50 @@ infer ctx (Case t x1 t1 x2 t2) = do
     _ -> Left (OtherError "Case expected sum type as argument")
     
 -- Delay  
-
--- Advance
-
--- Advance AL
--- Select
 -- Always
 -- Unbox
 -- Fix (check only)
 -- Never
 -- Wait
 -- Read
--- Head
--- Tail
 -- Cons
 
-infer ctx (Adv v) =
+infer ctx (Adv v) = do
+  ctxBeforeTick <- preTick ctx
+  ty <- infer ctxBeforeTick v
+  case ty of
+    EL a -> Right a
+    _    -> Left (OtherError "Adv expected a delayed type")
 
-infer ctx (AdvAL v) =
+infer ctx (AdvAL v) = do
+  ctxBeforeTick <- preTick ctx
+  ty <- infer ctxBeforeTick v
+  case ty of
+    AL a -> Right a
+    _    -> Left (OtherError "AdvAL expected an anytime-later type")
 
-infer ctx (Select v1 v2) =
+infer ctx (Select v1 v2) = do
+  ctxBeforeTick <- preTick ctx
+  ty1 <- infer ctxBeforeTick v1
+  ty2 <- infer ctxBeforeTick v2
+  case (ty1, ty2) of
+    (EL a1, EL a2) ->
+      Right (Sum (Sum (Prod a1 (EL a2))
+                      (Prod (EL a1) a2))
+                 (Prod a1 a2))
+    _ -> Left (OtherError "Select expected two delayed computations of the same type")
 
-infer ctx (Head t) = 
+infer ctx (Head t) = do
+  ty <- infer ctx t
+  case ty of
+    Sig a -> Right a
+    _     -> Left (OtherError "Head expected a signal")
 
-infer ctx (Tail t) = 
+infer ctx (Tail t) = do
+  ty <- infer ctx t
+  case ty of
+    Sig a -> Right (EL (Sig a))
+    _     -> Left (OtherError "Tail expected a signal")
 
 -- Switch from infer mode to check mode
 inferType ctx (Anno t ty) = checkType ctx t ty
