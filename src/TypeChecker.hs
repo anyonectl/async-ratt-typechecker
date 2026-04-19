@@ -91,6 +91,19 @@ infer ctx (Case t x1 t1 x2 t2) = do
 -- Tail
 -- Cons
 
+infer ctx (Adv v) =
+
+infer ctx (AdvAL v) =
+
+infer ctx (Select v1 v2) =
+
+infer ctx (Head t) = 
+
+infer ctx (Tail t) = 
+
+-- Switch from infer mode to check mode
+inferType ctx (Anno t ty) = checkType ctx t ty
+
 -- Add new implementations above this comment
 
 -- Default

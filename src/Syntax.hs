@@ -99,6 +99,7 @@ data Term
     | Head Term                   
     | Tail Term
     | Cons Term Term
+    | Anno Term Type 
     deriving (Eq, Show)
 
 data Injection  = InLeft | InRight deriving (Eq, Show)
