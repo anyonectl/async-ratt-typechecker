@@ -2,7 +2,6 @@ module TypeChecker where
 
 import Syntax
 import Context
-import Syntax (Type(EL))
 
 data TypeError
   = TypeMismatch  { expected :: Type, got :: Type }
