@@ -47,15 +47,15 @@ lookupType var (Ctx (simple, ticked)) =
     case lookup var simple of
         Just ty -> Right ty
         Nothing -> searchTicked var ticked
-
--- Search for variable in ticked contexts (variable must have stable type)
-searchTicked :: Var -> [(ClockExpr, SimpleCtx)] -> Either ContextError Type
-searchTicked var [] = Left (VariableNotFound var)
-searchTicked var ((_, simple') : rest) =
-    case lookup var simple' of
-        Just ty | isStableType ty -> Right ty -- only stable types can cross ticks
-        Just _ -> Left (OtherContextError "unstable type in ticked context")
-        Nothing -> searchTicked var rest
+  where
+    -- Search for variable in ticked contexts (variable must have stable type)
+    searchTicked :: Var -> [(ClockExpr, SimpleCtx)] -> Either ContextError Type
+    searchTicked var [] = Left (VariableNotFound var)
+    searchTicked var ((_, simple') : rest) =
+        case lookup var simple' of
+            Just ty | isStableType ty -> Right ty -- only stable types can cross ticks
+            Just _ -> Left (OtherContextError "unstable type in ticked context")
+            Nothing -> searchTicked var rest
 
 -- Remove all ticks and non-stable variable bindings from a typing context
 -- But maybe this is unnecessarily inefficient...?
