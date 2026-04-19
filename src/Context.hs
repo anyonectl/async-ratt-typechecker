@@ -12,6 +12,8 @@ data Ctx
 data ContextError
     = VariableNotFound Var
     | ContextIsEmpty String
+    | UnstableType Var Type
+    | NoTickInContext
     | OtherContextError String
     deriving (Eq, Show)
 
@@ -55,7 +57,7 @@ lookupType var (Ctx (simple, ticked)) =
     searchTicked var ((_, simple') : rest) =
         case lookup var simple' of
             Just ty | isStableType ty -> Right ty -- only stable types can cross ticks
-            Just _ -> Left (OtherContextError "unstable type in ticked context")
+            Just ty -> Left (UnstableType var ty)
             Nothing -> searchTicked var rest
 
 -- Remove all ticks and non-stable variable bindings from a typing context
@@ -79,7 +81,7 @@ stableCtx ctx       = Ctx (ctx & removeTicks & removeNonStable, [])
 -- needed for select, adv
 preTick :: Ctx -> Either ContextError Ctx
 preTick (Ctx (_, (_, simple) : rest)) = Right (Ctx (simple, rest))
-preTick _ = Left (OtherContextError "no ticks in this context")
+preTick _ = Left NoTickInContext
 
 -- Advance value of exist later
 -- advance :: Ctx -> 
