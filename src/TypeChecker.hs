@@ -75,21 +75,63 @@ infer ctx (Case t x1 t1 x2 t2) = do
         else Left (OtherError "Case branches have different types")
     _ -> Left (OtherError "Case expected sum type as argument")
     
--- Delay  
-
--- Advance
-
--- Advance AL
--- Select
 -- Always
 -- Unbox
 -- Fix (check only)
 -- Never
 -- Wait
 -- Read
+
+-- Adv
+infer ctx (Adv v) = do
+  ctxBeforeTick <- preTick ctx
+  ty <- infer ctxBeforeTick v
+  case ty of
+    EL a -> Right a
+    _    -> Left (OtherError "Adv expected a delayed type")
+
+-- AdvAL
+infer ctx (AdvAL v) = do
+  ctxBeforeTick <- preTick ctx
+  ty <- infer ctxBeforeTick v
+  case ty of
+    AL a -> Right a
+    _    -> Left (OtherError "AdvAL expected an anytime-later type")
+
+-- Select
+infer ctx (Select v1 v2) = do
+  ctxBeforeTick <- preTick ctx
+  ty1 <- infer ctxBeforeTick v1
+  ty2 <- infer ctxBeforeTick v2
+  case (ty1, ty2) of
+    (EL a1, EL a2) ->
+      Right (Sum (Sum (Prod a1 (EL a2))
+                      (Prod (EL a1) a2))
+                 (Prod a1 a2))
+    _ -> Left (OtherError "Select expected two delayed computations of the same type")
+
 -- Head
+infer ctx (Head t) = do
+  ty <- infer ctx t
+  case ty of
+    Sig a -> Right a
+    _     -> Left (OtherError "Head expected a signal")
+
 -- Tail
+infer ctx (Tail t) = do
+  ty <- infer ctx t
+  case ty of
+    Sig a -> Right (EL (Sig a))
+    _     -> Left (OtherError "Tail expected a signal")
+
 -- Cons
+infer ctx (Cons hd tl) = do
+  headTy <- infer ctx hd
+  check ctx tl (EL (Sig headTy))
+  return (Sig headTy) -- need to understand better what return does here
+
+-- Switch from infer mode to check mode (when do we need this?)
+inferType ctx (Anno t ty) = checkType ctx t ty
 
 -- Add new implementations above this comment
 
@@ -153,9 +195,14 @@ check ctx (Case t x1 t1 x2 t2) ty = do
     _ -> Left (OtherError "Case argument is not a sum type")
 
 -- Delay
--- Advance
--- Advance AL
--- Select
+check ctx (Delay cl t) (EL ty) = do
+  check (addTick cl ctx) t ty
+  return (EL ty) -- need to understand better what return does here
+
+check _ (Delay _ _) expected =
+    Left (OtherError
+        ("not a delayed type: " ++ show expected))
+
 -- Always
 -- Unbox
 
@@ -167,9 +214,12 @@ check ctx (Fix x t) ty = do
 -- Never
 -- Wait
 -- Read
--- Head
--- Tail
+
 -- Cons
+check ctx (Cons hd tl) (Sig ty) = do
+  check ctx hd ty
+  check ctx tl (EL (Sig ty))
+  return (Sig ty) -- need to understand better what return does here
 
 -- Default
 check ctx t ty =
