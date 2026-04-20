@@ -39,14 +39,6 @@ data ClockExpr
 -- VARIABLES
 type Var = String
 
--- TYPING CONTEXTS
-type SCtx = [(Var, Type)] 
-
-data Ctx
-    = EmptyCtx
-    | Ctx (SCtx, [(SCtx, ClockExpr)])
-    deriving (Eq, Show)
-
 
 -- TYPES
 data Type 
@@ -61,14 +53,14 @@ data Type
     | Sig Type                    -- Sig A is a signal of type A
     deriving (Eq, Show)
 
-isStable :: Type -> Bool
-isStable Unit        = True
-isStable Nat         = True
-isStable (Prod t t') = isStable t && isStable t'
-isStable (Sum t t')  = isStable t && isStable t'
-isStable (AL _)      = True
-isStable (Box _)     = True
-isStable _           = False
+isStableType :: Type -> Bool
+isStableType Unit        = True
+isStableType Nat         = True
+isStableType (Prod t t') = isStableType t && isStableType t'
+isStableType (Sum t t')  = isStableType t && isStableType t'
+isStableType (AL _)      = True
+isStableType (Box _)     = True
+isStableType _           = False
 
 isValueType :: Type -> Bool
 isValueType Unit        = True
