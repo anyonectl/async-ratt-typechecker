@@ -23,6 +23,11 @@ chanClass chan "b" = isBuf chan
 chanClass chan "p" = isPush chan
 chanClass _ _      = False
 
+chanType :: Chan -> Type
+chanType (Buf ty)     = ty
+chanType (PushBuf ty) = ty
+chanType (Push ty)     = ty
+
 
 -- CLOCKS
 data ClockExpr 
