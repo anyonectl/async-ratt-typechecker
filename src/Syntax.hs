@@ -102,27 +102,6 @@ data Term
 data Injection  = InLeft | InRight deriving (Eq, Show)
 data Projection = Fst    | Snd     deriving (Eq, Show)
 
-true :: Term
-true = Inj InLeft UnitVal
-
-false :: Term
-false = Inj InRight UnitVal
-
-bool :: Type
-bool = Sum Unit Unit
-
-isTrue :: Term -> Bool
-isTrue (Inj InLeft UnitVal) = True
-isTrue _                    = False
-
-isFalse :: Term -> Bool
-isFalse (Inj InRight UnitVal) = True
-isFalse _                     = False
-
-isBoolType :: Type -> Bool
-isBoolType (Sum Unit Unit) = True  -- Checks if it's the sum of two Units
-isBoolType _               = False -- Otherwise, it's not a boolean type
-
 -- Check if a term is a value (can't be reduced further) - relevant for `advance` and `select`
 isValue :: Term -> Bool
 isValue (Variable _) = True
