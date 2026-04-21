@@ -1,0 +1,25 @@
+module ErrorTypes where
+
+import Syntax
+
+data ContextError
+    = VariableNotFound Var
+    | ContextIsEmpty String
+    | UnstableType Var Type
+    | NoTickInContext
+    | OtherContextError String
+    deriving (Eq, Show)
+
+data TypeError
+  = TypeMismatch { term :: Term, expected :: Type, got :: Type }
+  | CtxError     ContextError
+  | OtherError   String
+  deriving (Eq)
+
+instance Show TypeError where
+    show (TypeMismatch t e g) = 
+        "Type mismatch in term " ++ show t ++ 
+        ": expected type " ++ show e ++ 
+        ", but got type " ++ show g
+    show (CtxError err) = "Context Error: " ++ show err
+    show (OtherError msg) = "Error: " ++ msg

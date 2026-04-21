@@ -19,6 +19,7 @@ common warnings
 library
     import:           warnings
     exposed-modules:  Syntax
+                    , ErrorTypes
                     , TypeChecker
                     , Context
     build-depends:    base >=4.7 && <5,

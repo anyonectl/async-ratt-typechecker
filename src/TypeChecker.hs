@@ -2,12 +2,7 @@ module TypeChecker where
 
 import Syntax
 import Context
-
-data TypeError
-  = TypeMismatch  { expected :: Type, got :: Type }
-  | CtxError      ContextError
-  | OtherError    String
-  deriving (Eq, Show)
+import ErrorTypes
 
 ---------------------------
 -- INFER
@@ -131,7 +126,7 @@ infer ctx (Cons hd tl) = do
   return (Sig headTy) -- need to understand better what return does here
 
 -- Switch from infer mode to check mode (when do we need this?)
-inferType ctx (Anno t ty) = checkType ctx t ty
+infer ctx (Anno t ty) = check ctx t ty
 
 -- Add new implementations above this comment
 

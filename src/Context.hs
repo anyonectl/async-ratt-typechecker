@@ -1,19 +1,12 @@
 module Context where
 
 import Syntax
+import ErrorTypes
 import Data.Function ((&))
 
 type SimpleCtx = [(Var, Type)]
 
 newtype Ctx =  Ctx (SimpleCtx, [(ClockExpr, SimpleCtx)])
-
-data ContextError
-    = VariableNotFound Var
-    | ContextIsEmpty String
-    | UnstableType Var Type
-    | NoTickInContext
-    | OtherContextError String
-    deriving (Eq, Show)
 
 isTickfree :: Ctx -> Bool
 isTickfree (Ctx ([], [])) = True
