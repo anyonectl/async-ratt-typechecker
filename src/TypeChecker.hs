@@ -1,5 +1,7 @@
 module TypeChecker where
 
+import Data.Bifunctor (first) -- first applies a function to the left side of an Either, leaving the right side untouched. We use it to wrap incoming ContextError as TypeError
+
 import Syntax
 import Context
 import ErrorTypes
@@ -77,25 +79,31 @@ infer ctx (Case t x1 t1 x2 t2) = do
 -- Wait
 -- Read
 
--- Adv
 infer ctx (Adv v) = do
-  ctxBeforeTick <- preTick ctx
-  ty <- infer ctxBeforeTick v
-  case ty of
-    EL a -> Right a
-    _    -> Left (OtherError "Adv expected a delayed type")
+  if not $ isValue v
+    then Left $ OtherError "(Adv v): v must be a value"
+    else do
+      ctxBeforeTick <- first CtxError $ preTick ctx --  first CtxError wraps a ContextError into a TypeError, so the types line up in the do block
+      ty <- infer ctxBeforeTick v
+      case ty of
+        EL a -> Right a
+        _    -> Left $ ExpectedEL {term = Adv v, got = ty}
+
 
 -- AdvAL
 infer ctx (AdvAL v) = do
-  ctxBeforeTick <- preTick ctx
-  ty <- infer ctxBeforeTick v
-  case ty of
-    AL a -> Right a
-    _    -> Left (OtherError "AdvAL expected an anytime-later type")
+  if not $ isValue v
+    then Left $ OtherError "AdvAL: v must be a value"
+    else do
+      ctxBeforeTick <- first CtxError $ preTick ctx
+      ty <- infer ctxBeforeTick v
+      case ty of
+        AL a -> Right a
+        _    -> Left $ ExpectedAL { term = AdvAL v, got = ty}
 
 -- Select
 infer ctx (Select v1 v2) = do
-  ctxBeforeTick <- preTick ctx
+  ctxBeforeTick <- first CtxError $ preTick ctx
   ty1 <- infer ctxBeforeTick v1
   ty2 <- infer ctxBeforeTick v2
   case (ty1, ty2) of
