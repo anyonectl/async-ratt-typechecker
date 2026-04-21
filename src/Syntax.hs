@@ -17,15 +17,9 @@ isBuf (Buf _)     = True
 isBuf (PushBuf _) = True
 isBuf (Push _)    = False
 
--- Relevant for `wait` and `read`
-chanClass :: Chan -> String -> Bool
-chanClass chan "b" = isBuf chan
-chanClass chan "p" = isPush chan
-chanClass _ _      = False
-
 chanType :: Chan -> Type
-chanType (Buf ty)     = ty
-chanType (PushBuf ty) = ty
+chanType (Buf ty)      = ty
+chanType (PushBuf ty)  = ty
 chanType (Push ty)     = ty
 
 
@@ -114,4 +108,3 @@ isValue (Lam _ _)    = True
 isValue (Always _)   = True
 isValue (Wait _)     = True
 isValue _            = False
-
