@@ -1,6 +1,7 @@
 module Context where
 
 import Syntax
+import Data.Function ((&))
 
 type SimpleCtx = [(Var, Type)]
 
