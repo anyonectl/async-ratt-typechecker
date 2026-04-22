@@ -71,4 +71,4 @@ preTickOnSpecificClock (Ctx (_unticked, (Clock x1, simple) : rest)) x2 =
     if x1 == x2 
         then Right (Ctx (simple, rest))
         else Left NoTickInContext
-preTickOnSpecificClock _ctx _t  = Left $ OtherContextError "Prev tick in context was not on variable x"
+preTickOnSpecificClock _ctx _x  = Left $ OtherContextError ("Previous tick in the context was not on variable " ++ show _x)
