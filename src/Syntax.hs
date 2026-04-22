@@ -29,9 +29,11 @@ chanType (PushBuf ty) = ty
 chanType (Push ty)     = ty
 
 -- Input channel context (delta) with example channels
+inputChans :: [Chan]
 inputChans = [Push Nat, Buf Nat, PushBuf Nat]
 
 -- CLOCKS
+-- Right now, clocks and channels are not associated in any way, even though a clock is a set of (push) channels, right? should we change this?
 data ClockExpr 
     = Clock Term
     | ClockUnion ClockExpr ClockExpr
