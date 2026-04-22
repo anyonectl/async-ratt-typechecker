@@ -37,6 +37,7 @@ type Var = String
 -- TYPES
 data Type 
     = Unit                        -- simplest possible type, with exactly one value: () (unit)
+    | Empty
     | Nat                         -- type of non-negative integers 0, 1, 2, ... 
     | Prod Type Type              -- A x B is a pair (2-tuple)
     | Sum Type Type               -- A + B - the type of values that are EITHER from A or from B
