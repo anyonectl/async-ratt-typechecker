@@ -28,6 +28,8 @@ chanType (Buf ty)     = ty
 chanType (PushBuf ty) = ty
 chanType (Push ty)     = ty
 
+-- Input channel context (delta) with example channels
+inputChans = [Push Nat, Buf Nat, PushBuf Nat]
 
 -- CLOCKS
 data ClockExpr 
