@@ -15,7 +15,7 @@ infer :: Ctx -> Term -> Either TypeError Type
 infer ctx (Variable x) =
   case lookupType x ctx of
     Right ty -> Right ty
-    Left err -> Left (CtxError err)
+    Left err -> Left $ CtxError err
 
 -- UnitVal
 infer _ UnitVal = Right Unit
@@ -28,7 +28,7 @@ infer ctx (Suc t) = do
   ty <- infer ctx t
   if ty == Nat
     then Right Nat
-    else Left (TypeMismatch { expected = Nat, got = ty })
+    else Left $ TypeMismatch { term = Suc t, expected = Nat, got = ty }
 
 -- Projection
 infer ctx (Proj i t) = do
@@ -36,7 +36,7 @@ infer ctx (Proj i t) = do
   case (i, ty) of
     (Fst, Prod a _) -> Right a
     (Snd, Prod _ b) -> Right b
-    _               -> Left (OtherError "Projection expected product type")
+    _               -> Left $ TypeMismatch { term = Proj i t, expected = Prod a b, got = ty} -- not sure this error works here.. 
 
 -- Let
 infer ctx (Let x t1 t2) = do
@@ -107,9 +107,6 @@ infer ctx (Select v1 v2) =
 
 -- Always
 -- Unbox
-
--- Never
-infer _ Never = Right EL Nat -- is this correcT?
 
 -- Wait (17)
 infer ctx (Wait k) = case k of
@@ -207,6 +204,11 @@ check _ (Delay _ _) expected =
 
 -- Always
 -- Unbox
+
+check _ Never ty = 
+  case ty of 
+    EL a  -> Right (EL a)
+    _     -> Left $ ExpectedEL { term = Never, got = ty }
 
 -- Fix
 check ctx (Fix x t) ty = do
