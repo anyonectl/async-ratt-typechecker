@@ -68,7 +68,7 @@ infer ctx (Case t x1 t1 x2 t2) = do
     _ -> Left (OtherError "Case expected sum type as argument")
 
 infer ctx (Adv (Variable x)) = do
-  ctxBeforeTick <- first CtxError $ preTickOnSpecificClock ctx x
+  ctxBeforeTick <- first CtxError $ preTickOnSpecificClock ctx (Variable x)
   tyBeforeTick <- first CtxError $ lookupType x ctxBeforeTick
   case tyBeforeTick of
     EL a -> Right a
@@ -219,3 +219,4 @@ check ctx t ty =
     Right ty' | ty == ty' -> Right ty
     Right ty'             -> Left (TypeMismatch { expected = ty, got = ty' })
     Left err              -> Left err
+
