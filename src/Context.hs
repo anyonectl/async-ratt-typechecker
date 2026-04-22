@@ -62,51 +62,7 @@ lookupType var (Ctx (simple, ticked)) =
 stableCtx :: Ctx -> Ctx -- (Ctx ([(var, ty)], (tick, sc)))
 stableCtx (Ctx ([], [])) = Ctx ([], [])
 stableCtx (Ctx (sc, ticks)) =
-    Ctx(filter (\(_, ty) -> isStableType ty) sc ++ concatMap (\(_, simple) -> filter (\(_, ty) -> isStableType ty) simple) ticks, [])
-
-
-
--- type SimpleCtx = [(Var, Type)]
-
--- newtype Ctx
---     = Ctx (SimpleCtx, [(ClockExpr, SimpleCtx)])
-
-
--- ([(Var, Type)], [(Clock, [(Var, Type)])])
-
--- (
---      [("x", Nat); ("y", Sig); ("z", Fun)], 
---      [
---          (Clock Zero, [("a", Nat); ("b", Sig); ("c", Fun)]); 
---          (Clock Suc Zero, [("d", Nat); ("e", Sig); ("f", Fun)])
---      ]
--- )
-
--- skal bli til
-
--- Ctx ([("x", Nat); ("y", Sig); ("z", Fun); ("a", Nat); ("b", Sig); ("c", Fun); ("d", Nat); ("e", Sig); ("f", Fun)], [])
-
--- -> sc1 ++ sc2 ++ sc3 ++ ... ++ scn = ls -> filter (\(_, ty) -> isStableType ty) ls
-    
-
--- 
-    
---     Ctx (ctx & removeTicks & removeNonStable, [])
-
-
--- stableCtx (Ctx ([], [])) = Ctx ([], [])
--- stableCtx ctx            = Ctx (ctx & removeTicks & removeNonStable, [])
---     where
---         removeTicks (Ctx ([], []))                  = []
---         removeTicks (Ctx (sc, []))                  = sc
---         -- E.g. here, we concatenate lists, where the first list grows after each recursive step... so the running time also grows. 
---         -- Would it be better to prepend, even though newest variables will then be at the end of the list?
---         removeTicks (Ctx (sc, (_, sc') : rest))  = sc ++ removeTicks (Ctx (sc', rest))
-        
---         removeNonStable []      = []
---         removeNonStable ((x, ty) : rest)
---             | isStableType ty   = (x, ty) : removeNonStable rest
---             | otherwise         = removeNonStable rest
+    Ctx(concatMap (filter (\(_, ty) -> isStableType ty)) (sc : map snd ticks), [])
 
 -- Remove the latest tick and all variable bindings added after that tick
 -- needed for select, adv
