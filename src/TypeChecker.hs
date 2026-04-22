@@ -1,13 +1,10 @@
 module TypeChecker where
 
+import Data.Bifunctor (first) -- first applies a function to the left side of an Either, leaving the right side untouched. We use it to wrap incoming ContextError as TypeError
+
 import Syntax
 import Context
-
-data TypeError
-  = TypeMismatch  { expected :: Type, got :: Type }
-  | CtxError      ContextError
-  | OtherError    String
-  deriving (Eq, Show)
+import ErrorTypes
 
 ---------------------------
 -- INFER
@@ -18,39 +15,34 @@ infer :: Ctx -> Term -> Either TypeError Type
 infer ctx (Variable x) =
   case lookupType x ctx of
     Right ty -> Right ty
-    Left err -> Left (CtxError err)
+    Left err -> Left $ CtxError err
 
 -- UnitVal
 infer _ UnitVal = Right Unit
 
 -- Zero
-infer _ Zero = Right Nat 
+infer _ Zero = Right Nat
 
 -- Succsessor
 infer ctx (Suc t) = do
   ty <- infer ctx t
   if ty == Nat
     then Right Nat
-    else Left (TypeMismatch { expected = Nat, got = ty })
-
--- Pair (check only)
--- Injection (check only)
+    else Left $ TypeMismatch { term = Suc t, expected = Nat, got = ty }
 
 -- Projection
 infer ctx (Proj i t) = do
   ty <- infer ctx t
-  case (i, ty) of 
+  case (i, ty) of
     (Fst, Prod a _) -> Right a
     (Snd, Prod _ b) -> Right b
-    _               -> Left (OtherError "Projection expected product type")
-
+    _               -> Left $ OtherError "Proj: expected a product type"
+    
 -- Let
 infer ctx (Let x t1 t2) = do
   ty1 <- infer ctx t1
   let ctx' = addVar x ty1 ctx
   infer ctx' t2
-
--- Lambda (check only)
 
 -- Application
 infer ctx (App f t) = do
@@ -74,41 +66,59 @@ infer ctx (Case t x1 t1 x2 t2) = do
         then Right ty1
         else Left (OtherError "Case branches have different types")
     _ -> Left (OtherError "Case expected sum type as argument")
-    
--- Always
--- Unbox
--- Fix (check only)
--- Never
--- Wait
--- Read
 
 -- Adv
-infer ctx (Adv v) = do
-  ctxBeforeTick <- preTick ctx
-  ty <- infer ctxBeforeTick v
-  case ty of
-    EL a -> Right a
-    _    -> Left (OtherError "Adv expected a delayed type")
+infer ctx (Adv v) =
+  if not $ isValue v
+    then Left $ ExpectedValue (Adv v)
+    else do
+      ctxBeforeTick <- first CtxError $ preTick ctx --  first CtxError wraps a ContextError into a TypeError, so the types line up in the do block
+      ty <- infer ctxBeforeTick v
+      case ty of
+        EL a -> Right a
+        _    -> Left $ ExpectedEL {term = Adv v, got = ty}
 
 -- AdvAL
-infer ctx (AdvAL v) = do
-  ctxBeforeTick <- preTick ctx
-  ty <- infer ctxBeforeTick v
-  case ty of
-    AL a -> Right a
-    _    -> Left (OtherError "AdvAL expected an anytime-later type")
+infer ctx (AdvAL v) =
+  if not $ isValue v
+    then Left $ ExpectedValue (AdvAL v)
+    else do
+      ctxBeforeTick <- first CtxError $ preTick ctx
+      ty <- infer ctxBeforeTick v
+      case ty of
+        AL a -> Right a
+        _    -> Left $ ExpectedAL { term = AdvAL v, got = ty}
 
 -- Select
-infer ctx (Select v1 v2) = do
-  ctxBeforeTick <- preTick ctx
-  ty1 <- infer ctxBeforeTick v1
-  ty2 <- infer ctxBeforeTick v2
-  case (ty1, ty2) of
-    (EL a1, EL a2) ->
-      Right (Sum (Sum (Prod a1 (EL a2))
-                      (Prod (EL a1) a2))
-                 (Prod a1 a2))
-    _ -> Left (OtherError "Select expected two delayed computations of the same type")
+infer ctx (Select v1 v2) =
+  if not (isValue v1) || not (isValue v2)
+    then Left $ ExpectedValue (Select v1 v2)
+    else do
+      ty1 <- infer ctx v1 -- premise 1: v_1 : EL a_1
+      ty2 <- infer ctx v2 -- premise 2: v_2 : EL a_2
+      -- premise 3: the clock is a union of cl(v_1) and cl(v_2)
+      -- how do we check premise 3? 
+      ctxBeforeTick <- first CtxError $ preTick ctx -- premise 4: there is a tick free context
+      case (ty1, ty2) of
+        (EL a1, EL a2) -> Right (Sum (Sum (Prod a1 (EL a2))
+                                          (Prod (EL a1) a2))
+                                (Prod a1 a2))
+        _ -> Left (OtherError "Select expected two delayed computations of the same type")
+
+-- Always
+-- Unbox
+
+-- Wait (17)
+infer ctx (Wait k) = case k of
+  Push a    -> Right (EL a)
+  PushBuf a -> Right (EL a)
+  _         -> Left $  ExpectedPushChannel (Wait k)
+
+-- Read (18)
+infer ctx (Read k) = case k of
+  Buf a     -> Right a
+  PushBuf a -> Right a
+  _         -> Left $ ExpectedBufferChannel (Read k)
 
 -- Head
 infer ctx (Head t) = do
@@ -131,9 +141,7 @@ infer ctx (Cons hd tl) = do
   return (Sig headTy) -- need to understand better what return does here
 
 -- Switch from infer mode to check mode (when do we need this?)
-inferType ctx (Anno t ty) = checkType ctx t ty
-
--- Add new implementations above this comment
+infer ctx (Anno t ty) = check ctx t ty
 
 -- Default
 infer _ _ = Left (OtherError "Infer failed..")
@@ -144,11 +152,6 @@ infer _ _ = Left (OtherError "Infer failed..")
 ---------------------------
 check :: Ctx -> Term -> Type -> Either TypeError Type
 
--- Variable (infer only)
--- UnitVal (infer only)
--- Zero (infer only)
--- Successor (infer only)
-
 -- Pair
 check ctx (Pair t1 t2) ty =
   case ty of
@@ -158,15 +161,13 @@ check ctx (Pair t1 t2) ty =
       Right ty
     _       -> Left (OtherError "Pair expected a product type")
 
--- Injection (Sum type)
+-- Injection
 check ctx (Inj rl t) ty =
   case ty of
     Sum a b -> case rl of
       InLeft  -> check ctx t a
       InRight -> check ctx t b
     _         -> Left (OtherError "Injection expected sum type")
-
--- Projection (infer only)
 
 -- Let
 check ctx (Let x t1 t2) ty = do -- this is just like the Sestoft book (yay!)
@@ -179,8 +180,6 @@ check ctx (Lam x t) ty =
   case ty of
     Fun a b -> check (addVar x a ctx) t b
     _       -> Left (OtherError "Lambda expected function type")
-
--- Application (infer only)
 
 -- Case
 check ctx (Case t x1 t1 x2 t2) ty = do
@@ -206,14 +205,15 @@ check _ (Delay _ _) expected =
 -- Always
 -- Unbox
 
+check _ Never ty = 
+  case ty of 
+    EL a  -> Right (EL a)
+    _     -> Left $ ExpectedEL { term = Never, got = ty }
+
 -- Fix
 check ctx (Fix x t) ty = do
   let ctx' = addVar x (AL ty) (stableCtx ctx)
   check ctx' t ty
-
--- Never
--- Wait
--- Read
 
 -- Cons
 check ctx (Cons hd tl) (Sig ty) = do

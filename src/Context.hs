@@ -1,37 +1,23 @@
 module Context where
 
 import Syntax
-import Data.Either (Either)
+import ErrorTypes
+import Data.Function ((&))
 
 type SimpleCtx = [(Var, Type)]
 
-data Ctx
-    = EmptyCtx -- maybe this is redundant since `Ctx ([], [])` also represents an empty context?
-    | Ctx (SimpleCtx, [(ClockExpr, SimpleCtx)]) -- if you read from right to left: SimpleCtx, then a tick, then a new SimpleCtx
-
-data ContextError
-    = VariableNotFound Var
-    | ContextIsEmpty String
-    | UnstableType Var Type
-    | NoTickInContext
-    | OtherContextError String
-    deriving (Eq, Show)
-
-isEmptyCtx :: Ctx -> Bool
-isEmptyCtx EmptyCtx       = True 
-isEmptyCtx (Ctx ([], [])) = True
-isEmptyCtx _              = False
+newtype Ctx =  Ctx (SimpleCtx, [(ClockExpr, SimpleCtx)])
 
 isTickfree :: Ctx -> Bool
-isTickfree EmptyCtx      = True
-isTickfree (Ctx (_, [])) = True
-isTickfree _             = False
+isTickfree (Ctx ([], [])) = True
+isTickfree (Ctx (_, []))  = True
+isTickfree _              = False
 
 -- Extend the typing context with a variable binding
 -- Needs to make sure that the variable is not already in the (simple) context
 -- Should it also make sure that the variable is not already in the ticked contexts?
 addVar :: Var -> Type -> Ctx -> Ctx
-addVar var ty EmptyCtx              = Ctx ([(var, ty)], [])
+addVar var ty (Ctx ([], []))            = Ctx ([(var, ty)], [])
 addVar var ty (Ctx (simple, ticked))    = Ctx (update simple, ticked)
     where
         update []       = [(var, ty)]
@@ -41,19 +27,19 @@ addVar var ty (Ctx (simple, ticked))    = Ctx (update simple, ticked)
 
 -- Extend the typing context with a tick on some clock
 addTick :: ClockExpr -> Ctx -> Ctx
-addTick cl EmptyCtx             = Ctx ([], [(cl, [])])
+addTick cl (Ctx ([], []))           = Ctx ([], [(cl, [])])
 addTick cl (Ctx (simple, ticked))   = Ctx ([], (cl, simple) : ticked)
 
 lookupType :: Var -> Ctx -> Either ContextError Type
-lookupType _ EmptyCtx = Left (ContextIsEmpty "cannot lookup in empty context")
-lookupType var (Ctx (simple, ticked)) =
+lookupType _   (Ctx ([], []))           = Left (ContextIsEmpty "cannot lookup in empty context")
+lookupType var (Ctx (simple, ticked))   =
     case lookup var simple of
         Just ty -> Right ty
         Nothing -> searchTicked var ticked
   where
     -- Search for variable in ticked contexts (variable must have stable type)
     searchTicked :: Var -> [(ClockExpr, SimpleCtx)] -> Either ContextError Type
-    searchTicked var [] = Left (VariableNotFound var)
+    searchTicked var []                    = Left (VariableNotFound var)
     searchTicked var ((_, simple') : rest) =
         case lookup var simple' of
             Just ty | isStableType ty -> Right ty -- only stable types can cross ticks
@@ -61,12 +47,12 @@ lookupType var (Ctx (simple, ticked)) =
             Nothing -> searchTicked var rest
 
 -- Remove all ticks and non-stable variable bindings from a typing context
--- But maybe this is unnecessarily inefficient...?
+-- But maybe this is unnecessarily inefficient...? Consider using map/filter?
 stableCtx :: Ctx -> Ctx
-stableCtx EmptyCtx  = EmptyCtx
-stableCtx ctx       = Ctx (ctx & removeTicks & removeNonStable, [])
+stableCtx (Ctx ([], [])) = Ctx ([], [])
+stableCtx ctx            = Ctx (ctx & removeTicks & removeNonStable, [])
     where
-        removeTicks EmptyCtx                        = []
+        removeTicks (Ctx ([], []))                  = []
         removeTicks (Ctx (sc, []))                  = sc
         -- E.g. here, we concatenate lists, where the first list grows after each recursive step... so the running time also grows. 
         -- Would it be better to prepend, even though newest variables will then be at the end of the list?
@@ -81,7 +67,7 @@ stableCtx ctx       = Ctx (ctx & removeTicks & removeNonStable, [])
 -- needed for select, adv
 preTick :: Ctx -> Either ContextError Ctx
 preTick (Ctx (_, (_, simple) : rest)) = Right (Ctx (simple, rest))
-preTick _ = Left NoTickInContext
+preTick _                             = Left NoTickInContext
 
 -- Advance value of exist later
 -- advance :: Ctx -> 

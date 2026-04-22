@@ -17,15 +17,9 @@ isBuf (Buf _)     = True
 isBuf (PushBuf _) = True
 isBuf (Push _)    = False
 
--- Relevant for `wait` and `read`
-chanClass :: Chan -> String -> Bool
-chanClass chan "b" = isBuf chan
-chanClass chan "p" = isPush chan
-chanClass _ _      = False
-
 chanType :: Chan -> Type
-chanType (Buf ty)     = ty
-chanType (PushBuf ty) = ty
+chanType (Buf ty)      = ty
+chanType (PushBuf ty)  = ty
 chanType (Push ty)     = ty
 
 
@@ -43,6 +37,7 @@ type Var = String
 -- TYPES
 data Type 
     = Unit                        -- simplest possible type, with exactly one value: () (unit)
+    | Empty
     | Nat                         -- type of non-negative integers 0, 1, 2, ... 
     | Prod Type Type              -- A x B is a pair (2-tuple)
     | Sum Type Type               -- A + B - the type of values that are EITHER from A or from B
@@ -102,27 +97,6 @@ data Term
 data Injection  = InLeft | InRight deriving (Eq, Show)
 data Projection = Fst    | Snd     deriving (Eq, Show)
 
-true :: Term
-true = Inj InLeft UnitVal
-
-false :: Term
-false = Inj InRight UnitVal
-
-bool :: Type
-bool = Sum Unit Unit
-
-isTrue :: Term -> Bool
-isTrue (Inj InLeft UnitVal) = True
-isTrue _                    = False
-
-isFalse :: Term -> Bool
-isFalse (Inj InRight UnitVal) = True
-isFalse _                     = False
-
-isBoolType :: Type -> Bool
-isBoolType (Sum Unit Unit) = True  -- Checks if it's the sum of two Units
-isBoolType _               = False -- Otherwise, it's not a boolean type
-
 -- Check if a term is a value (can't be reduced further) - relevant for `advance` and `select`
 isValue :: Term -> Bool
 isValue (Variable _) = True
@@ -135,4 +109,3 @@ isValue (Lam _ _)    = True
 isValue (Always _)   = True
 isValue (Wait _)     = True
 isValue _            = False
-
