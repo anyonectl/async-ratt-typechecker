@@ -56,5 +56,11 @@ instance Show TypeError where
                             then "(v2) expected value type, but got type " ++ show g2'
                             else ""
                     in msg1 ++ msg2
+    show (ExpectedBufferChannel t) = 
+        "Type mismatch in term " ++ show t ++
+        ": expected channel to be buffer"
+    show (ExpectedPushChannel t) = 
+        "Type mismatch in term " ++ show t ++
+        ": expected channel to be push"
     show (CtxError err) = "Context Error: " ++ show err
     show (OtherError msg) = "Error: " ++ msg

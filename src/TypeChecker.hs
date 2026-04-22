@@ -117,6 +117,25 @@ infer ctx (Select v1 v2) =
                                 (Prod a1 a2))
         _ -> Left (OtherError "Select expected two delayed computations of the same type")
 
+-- Always (26)
+-- Unbox (27)
+-- Fix (check only) (24)
+
+-- Never (16)
+infer _ Never = Right EL Nat -- is this correcT?
+
+-- Wait (17)
+infer ctx (Wait k) = case k of
+  Push a    -> Right EL a
+  PushBuf a -> Right EL a
+  _         -> Left $  ExpectedPushChannel (Wait k)
+
+-- Read (18)
+infer ctx (Read k) = case k of
+  Buf a     -> Right a
+  PushBuf a -> Right a
+  _         -> Left $ ExpectedBufferChannel (Read k)
+
 -- Head
 infer ctx (Head t) = do
   ty <- infer ctx t
