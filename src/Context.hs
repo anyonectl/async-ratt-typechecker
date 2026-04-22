@@ -47,7 +47,7 @@ lookupType var (Ctx (simple, ticked)) =
             Nothing -> searchTicked var rest
 
 -- Remove all ticks and non-stable variable bindings from a typing context
--- But maybe this is unnecessarily inefficient...?
+-- But maybe this is unnecessarily inefficient...? Consider using map/filter?
 stableCtx :: Ctx -> Ctx
 stableCtx (Ctx ([], [])) = Ctx ([], [])
 stableCtx ctx            = Ctx (ctx & removeTicks & removeNonStable, [])

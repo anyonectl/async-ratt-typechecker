@@ -21,7 +21,7 @@ infer ctx (Variable x) =
 infer _ UnitVal = Right Unit
 
 -- Zero
-infer _ Zero = Right Nat 
+infer _ Zero = Right Nat
 
 -- Succsessor
 infer ctx (Suc t) = do
@@ -36,7 +36,7 @@ infer ctx (Suc t) = do
 -- Projection
 infer ctx (Proj i t) = do
   ty <- infer ctx t
-  case (i, ty) of 
+  case (i, ty) of
     (Fst, Prod a _) -> Right a
     (Snd, Prod _ b) -> Right b
     _               -> Left (OtherError "Projection expected product type")
@@ -58,7 +58,7 @@ infer ctx (App f t) = do
       Right b
     _ -> Left (OtherError "Application expected function type")
 
--- Case
+-- Case (12)
 infer ctx (Case t x1 t1 x2 t2) = do
   ty <- infer ctx t
   case ty of
@@ -71,17 +71,17 @@ infer ctx (Case t x1 t1 x2 t2) = do
         then Right ty1
         else Left (OtherError "Case branches have different types")
     _ -> Left (OtherError "Case expected sum type as argument")
-    
--- Always
--- Unbox
--- Fix (check only)
--- Never
--- Wait
--- Read
 
-infer ctx (Adv v) = do
+-- Delay (15)
+infer ctx (Delay cl t) = error "TODO"
+  -- Premise 1: In a context with a tick, t:A
+  -- Premise 2: Theta is a clock
+  -- Conclusion: delay on clock t: EL a
+
+-- Adv (19)
+infer ctx (Adv v) =
   if not $ isValue v
-    then Left $ OtherError "(Adv v): v must be a value"
+    then Left $ ExpectedValue { term = Adv v, got = v }
     else do
       ctxBeforeTick <- first CtxError $ preTick ctx --  first CtxError wraps a ContextError into a TypeError, so the types line up in the do block
       ty <- infer ctxBeforeTick v
@@ -90,10 +90,10 @@ infer ctx (Adv v) = do
         _    -> Left $ ExpectedEL {term = Adv v, got = ty}
 
 
--- AdvAL
-infer ctx (AdvAL v) = do
+-- AdvAL (25)
+infer ctx (AdvAL v) =
   if not $ isValue v
-    then Left $ OtherError "AdvAL: v must be a value"
+    then Left $ ExpectedValue { term = AdvAL v, got = v }
     else do
       ctxBeforeTick <- first CtxError $ preTick ctx
       ty <- infer ctxBeforeTick v
@@ -101,17 +101,21 @@ infer ctx (AdvAL v) = do
         AL a -> Right a
         _    -> Left $ ExpectedAL { term = AdvAL v, got = ty}
 
--- Select
-infer ctx (Select v1 v2) = do
-  ctxBeforeTick <- first CtxError $ preTick ctx
-  ty1 <- infer ctxBeforeTick v1
-  ty2 <- infer ctxBeforeTick v2
-  case (ty1, ty2) of
-    (EL a1, EL a2) ->
-      Right (Sum (Sum (Prod a1 (EL a2))
-                      (Prod (EL a1) a2))
-                 (Prod a1 a2))
-    _ -> Left (OtherError "Select expected two delayed computations of the same type")
+-- Select (20)
+infer ctx (Select v1 v2) =
+  if not (isValue v1) || not (isValue v2)
+    then Left $ ExpectedTwoValues { term = Select v1 v2, got1 = v1, got2 = v2}
+    else do
+      ty1 <- infer ctx v1 -- premise 1: v_1 : EL a_1
+      ty2 <- infer ctx v2 -- premise 2: v_2 : EL a_2
+      -- premise 3: the clock is a union of cl(v_1) and cl(v_2)
+      -- how do we check premise 3? 
+      ctxBeforeTick <- first CtxError $ preTick ctx -- premise 4: there is a tick free context
+      case (ty1, ty2) of
+        (EL a1, EL a2) -> Right (Sum (Sum (Prod a1 (EL a2))
+                                          (Prod (EL a1) a2))
+                                (Prod a1 a2))
+        _ -> Left (OtherError "Select expected two delayed computations of the same type")
 
 -- Head
 infer ctx (Head t) = do
