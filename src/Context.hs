@@ -5,9 +5,8 @@ import Data.Either (Either)
 
 type SimpleCtx = [(Var, Type)]
 
-data Ctx
-    = EmptyCtx -- maybe this is redundant since `Ctx ([], [])` also represents an empty context?
-    | Ctx (SimpleCtx, [(ClockExpr, SimpleCtx)]) -- if you read from right to left: SimpleCtx, then a tick, then a new SimpleCtx
+newtype Ctx
+    = Ctx (SimpleCtx, [(ClockExpr, SimpleCtx)]) -- if you read from right to left: SimpleCtx, then a tick, then a new SimpleCtx
 
 data ContextError
     = VariableNotFound Var
@@ -18,12 +17,10 @@ data ContextError
     deriving (Eq, Show)
 
 isEmptyCtx :: Ctx -> Bool
-isEmptyCtx EmptyCtx       = True 
 isEmptyCtx (Ctx ([], [])) = True
 isEmptyCtx _              = False
 
 isTickfree :: Ctx -> Bool -- not needed, we have pretick, this is the only case when we need it
-isTickfree EmptyCtx      = True
 isTickfree (Ctx (_, [])) = True
 isTickfree _             = False
 
@@ -31,7 +28,7 @@ isTickfree _             = False
 -- Needs to make sure that the variable is not already in the (simple) context
 -- Should it also make sure that the variable is not already in the ticked contexts?
 addVar :: Var -> Type -> Ctx -> Ctx
-addVar var ty EmptyCtx              = Ctx ([(var, ty)], [])
+addVar var ty (Ctx ([], []))            = Ctx ([(var, ty)], [])
 addVar var ty (Ctx (simple, ticked))    = Ctx (update simple, ticked)
     where
         update []       = [(var, ty)]
@@ -41,11 +38,11 @@ addVar var ty (Ctx (simple, ticked))    = Ctx (update simple, ticked)
 
 -- Extend the typing context with a tick on some clock
 addTick :: ClockExpr -> Ctx -> Ctx
-addTick cl EmptyCtx             = Ctx ([], [(cl, [])])
+addTick cl (Ctx ([], []))           = Ctx ([], [(cl, [])])
 addTick cl (Ctx (simple, ticked))   = Ctx ([], (cl, simple) : ticked)
 
 lookupType :: Var -> Ctx -> Either ContextError Type
-lookupType _ EmptyCtx = Left (ContextIsEmpty "cannot lookup in empty context")
+lookupType _ (Ctx ([], []))           = Left (ContextIsEmpty "cannot lookup in empty context")
 lookupType var (Ctx (simple, ticked)) =
     case lookup var simple of
         Just ty -> Right ty
@@ -63,10 +60,10 @@ lookupType var (Ctx (simple, ticked)) =
 -- Remove all ticks and non-stable variable bindings from a typing context
 -- But maybe this is unnecessarily inefficient...?
 stableCtx :: Ctx -> Ctx
-stableCtx EmptyCtx  = EmptyCtx
-stableCtx ctx       = Ctx (ctx & removeTicks & removeNonStable, [])
+stableCtx (Ctx ([], [])) = Ctx ([], [])
+stableCtx ctx            = Ctx (ctx & removeTicks & removeNonStable, [])
     where
-        removeTicks EmptyCtx                        = []
+        removeTicks (Ctx ([], []))                  = []
         removeTicks (Ctx (sc, []))                  = sc
         -- E.g. here, we concatenate lists, where the first list grows after each recursive step... so the running time also grows. 
         -- Would it be better to prepend, even though newest variables will then be at the end of the list?
