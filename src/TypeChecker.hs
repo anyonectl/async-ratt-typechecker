@@ -205,10 +205,8 @@ check _ (Delay _ _) expected =
 -- Always
 -- Unbox
 
-check _ Never ty = 
-  case ty of 
-    EL a  -> Right (EL a)
-    _     -> Left $ ExpectedEL { term = Never, got = ty }
+check _ Never (EL a) = Right (EL a)
+check _ Never _      = Left $ ExpectedEL { term = Never, got = ty }
 
 -- Fix
 check ctx (Fix x t) ty = do
