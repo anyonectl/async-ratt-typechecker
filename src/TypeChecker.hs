@@ -30,9 +30,6 @@ infer ctx (Suc t) = do
     then Right Nat
     else Left (TypeMismatch { expected = Nat, got = ty })
 
--- Pair (check only)
--- Injection (check only)
-
 -- Projection
 infer ctx (Proj i t) = do
   ty <- infer ctx t
@@ -47,8 +44,6 @@ infer ctx (Let x t1 t2) = do
   let ctx' = addVar x ty1 ctx
   infer ctx' t2
 
--- Lambda (check only)
-
 -- Application
 infer ctx (App f t) = do
   fTy <- infer ctx f
@@ -58,7 +53,7 @@ infer ctx (App f t) = do
       Right b
     _ -> Left (OtherError "Application expected function type")
 
--- Case (12)
+-- Case
 infer ctx (Case t x1 t1 x2 t2) = do
   ty <- infer ctx t
   case ty of
@@ -72,13 +67,7 @@ infer ctx (Case t x1 t1 x2 t2) = do
         else Left (OtherError "Case branches have different types")
     _ -> Left (OtherError "Case expected sum type as argument")
 
--- Delay (15)
-infer ctx (Delay cl t) = error "TODO"
-  -- Premise 1: In a context with a tick, t:A
-  -- Premise 2: Theta is a clock
-  -- Conclusion: delay on clock t: EL a
-
--- Adv (19)
+-- Adv
 infer ctx (Adv v) =
   if not $ isValue v
     then Left $ ExpectedValue { term = Adv v, got = v }
@@ -89,8 +78,7 @@ infer ctx (Adv v) =
         EL a -> Right a
         _    -> Left $ ExpectedEL {term = Adv v, got = ty}
 
-
--- AdvAL (25)
+-- AdvAL
 infer ctx (AdvAL v) =
   if not $ isValue v
     then Left $ ExpectedValue { term = AdvAL v, got = v }
@@ -101,7 +89,7 @@ infer ctx (AdvAL v) =
         AL a -> Right a
         _    -> Left $ ExpectedAL { term = AdvAL v, got = ty}
 
--- Select (20)
+-- Select
 infer ctx (Select v1 v2) =
   if not (isValue v1) || not (isValue v2)
     then Left $ ExpectedTwoValues { term = Select v1 v2, got1 = v1, got2 = v2}
@@ -117,11 +105,10 @@ infer ctx (Select v1 v2) =
                                 (Prod a1 a2))
         _ -> Left (OtherError "Select expected two delayed computations of the same type")
 
--- Always (26)
--- Unbox (27)
--- Fix (check only) (24)
+-- Always
+-- Unbox
 
--- Never (16)
+-- Never
 infer _ Never = Right EL Nat -- is this correcT?
 
 -- Wait (17)
@@ -159,8 +146,6 @@ infer ctx (Cons hd tl) = do
 -- Switch from infer mode to check mode (when do we need this?)
 infer ctx (Anno t ty) = check ctx t ty
 
--- Add new implementations above this comment
-
 -- Default
 infer _ _ = Left (OtherError "Infer failed..")
 
@@ -169,11 +154,6 @@ infer _ _ = Left (OtherError "Infer failed..")
 -- CHECK
 ---------------------------
 check :: Ctx -> Term -> Type -> Either TypeError Type
-
--- Variable (infer only)
--- UnitVal (infer only)
--- Zero (infer only)
--- Successor (infer only)
 
 -- Pair
 check ctx (Pair t1 t2) ty =
@@ -184,15 +164,13 @@ check ctx (Pair t1 t2) ty =
       Right ty
     _       -> Left (OtherError "Pair expected a product type")
 
--- Injection (Sum type)
+-- Injection
 check ctx (Inj rl t) ty =
   case ty of
     Sum a b -> case rl of
       InLeft  -> check ctx t a
       InRight -> check ctx t b
     _         -> Left (OtherError "Injection expected sum type")
-
--- Projection (infer only)
 
 -- Let
 check ctx (Let x t1 t2) ty = do -- this is just like the Sestoft book (yay!)
@@ -205,8 +183,6 @@ check ctx (Lam x t) ty =
   case ty of
     Fun a b -> check (addVar x a ctx) t b
     _       -> Left (OtherError "Lambda expected function type")
-
--- Application (infer only)
 
 -- Case
 check ctx (Case t x1 t1 x2 t2) ty = do
@@ -236,10 +212,6 @@ check _ (Delay _ _) expected =
 check ctx (Fix x t) ty = do
   let ctx' = addVar x (AL ty) (stableCtx ctx)
   check ctx' t ty
-
--- Never
--- Wait
--- Read
 
 -- Cons
 check ctx (Cons hd tl) (Sig ty) = do

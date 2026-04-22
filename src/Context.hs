@@ -27,12 +27,12 @@ addVar var ty (Ctx (simple, ticked))    = Ctx (update simple, ticked)
 
 -- Extend the typing context with a tick on some clock
 addTick :: ClockExpr -> Ctx -> Ctx
-addTick cl (Ctx ([], []))             = Ctx ([], [(cl, [])])
+addTick cl (Ctx ([], []))           = Ctx ([], [(cl, [])])
 addTick cl (Ctx (simple, ticked))   = Ctx ([], (cl, simple) : ticked)
 
 lookupType :: Var -> Ctx -> Either ContextError Type
 lookupType _   (Ctx ([], []))           = Left (ContextIsEmpty "cannot lookup in empty context")
-lookupType var (Ctx (simple, ticked)) =
+lookupType var (Ctx (simple, ticked))   =
     case lookup var simple of
         Just ty -> Right ty
         Nothing -> searchTicked var ticked
