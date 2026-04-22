@@ -108,14 +108,14 @@ infer ctx (Select v1 v2) =
 -- Always
 -- Unbox
 
--- Wait (17)
-infer ctx (Wait k) = case k of
+-- Wait
+infer _ (Wait k) = case k of
   Push a    -> Right (EL a)
   PushBuf a -> Right (EL a)
   _         -> Left $  ExpectedPushChannel (Wait k)
 
--- Read (18)
-infer ctx (Read k) = case k of
+-- Read 
+infer _ (Read k) = case k of
   Buf a     -> Right a
   PushBuf a -> Right a
   _         -> Left $ ExpectedBufferChannel (Read k)
