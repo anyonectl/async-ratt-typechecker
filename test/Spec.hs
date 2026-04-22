@@ -1,5 +1,6 @@
 import Test.Hspec
 import TypeCheckerSpec
+import ContextSpec
 
 main :: IO ()
 main = hspec $ do

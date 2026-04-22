@@ -36,8 +36,8 @@ infer ctx (Proj i t) = do
   case (i, ty) of
     (Fst, Prod a _) -> Right a
     (Snd, Prod _ b) -> Right b
-    _               -> Left $ TypeMismatch { term = Proj i t, expected = Prod a b, got = ty} -- not sure this error works here.. 
-
+    _               -> Left $ OtherError "Proj: expected a product type"
+    
 -- Let
 infer ctx (Let x t1 t2) = do
   ty1 <- infer ctx t1
@@ -70,7 +70,7 @@ infer ctx (Case t x1 t1 x2 t2) = do
 -- Adv
 infer ctx (Adv v) =
   if not $ isValue v
-    then Left $ ExpectedValue { term = Adv v, got = v }
+    then Left $ ExpectedValue (Adv v)
     else do
       ctxBeforeTick <- first CtxError $ preTick ctx --  first CtxError wraps a ContextError into a TypeError, so the types line up in the do block
       ty <- infer ctxBeforeTick v
@@ -81,7 +81,7 @@ infer ctx (Adv v) =
 -- AdvAL
 infer ctx (AdvAL v) =
   if not $ isValue v
-    then Left $ ExpectedValue { term = AdvAL v, got = v }
+    then Left $ ExpectedValue (AdvAL v)
     else do
       ctxBeforeTick <- first CtxError $ preTick ctx
       ty <- infer ctxBeforeTick v
@@ -92,7 +92,7 @@ infer ctx (AdvAL v) =
 -- Select
 infer ctx (Select v1 v2) =
   if not (isValue v1) || not (isValue v2)
-    then Left $ ExpectedTwoValues { term = Select v1 v2, got1 = v1, got2 = v2}
+    then Left $ ExpectedValue (Select v1 v2)
     else do
       ty1 <- infer ctx v1 -- premise 1: v_1 : EL a_1
       ty2 <- infer ctx v2 -- premise 2: v_2 : EL a_2
@@ -110,8 +110,8 @@ infer ctx (Select v1 v2) =
 
 -- Wait (17)
 infer ctx (Wait k) = case k of
-  Push a    -> Right EL a
-  PushBuf a -> Right EL a
+  Push a    -> Right (EL a)
+  PushBuf a -> Right (EL a)
   _         -> Left $  ExpectedPushChannel (Wait k)
 
 -- Read (18)
