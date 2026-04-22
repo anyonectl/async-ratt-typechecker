@@ -22,7 +22,7 @@ isEmptyCtx EmptyCtx       = True
 isEmptyCtx (Ctx ([], [])) = True
 isEmptyCtx _              = False
 
-isTickfree :: Ctx -> Bool
+isTickfree :: Ctx -> Bool -- not needed, we have pretick, this is the only case when we need it
 isTickfree EmptyCtx      = True
 isTickfree (Ctx (_, [])) = True
 isTickfree _             = False
@@ -79,7 +79,7 @@ stableCtx ctx       = Ctx (ctx & removeTicks & removeNonStable, [])
 
 -- Remove the latest tick and all variable bindings added after that tick
 -- needed for select, adv
-preTick :: Ctx -> Either ContextError Ctx
+preTick :: Ctx -> Either ContextError Ctx -- need to also check if a term has a specific clock ..
 preTick (Ctx (_, (_, simple) : rest)) = Right (Ctx (simple, rest))
 preTick _ = Left NoTickInContext
 

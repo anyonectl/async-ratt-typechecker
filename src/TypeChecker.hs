@@ -83,15 +83,15 @@ infer ctx (Case t x1 t1 x2 t2) = do
 -- Read
 
 -- Adv
-infer ctx (Adv v) = do
-  ctxBeforeTick <- preTick ctx
+infer ctx (Adv v) = do -- check that v is a value (needs to be a variable)
+  ctxBeforeTick <- preTick ctx -- take Maybe arg of clock we expect (chops off tick AND checks the clock)
   ty <- infer ctxBeforeTick v
   case ty of
     EL a -> Right a
     _    -> Left (OtherError "Adv expected a delayed type")
 
--- AdvAL
-infer ctx (AdvAL v) = do
+-- AdvAL 
+infer ctx (AdvAL v) = do -- check that v is a value (needs to be a variable)
   ctxBeforeTick <- preTick ctx
   ty <- infer ctxBeforeTick v
   case ty of
