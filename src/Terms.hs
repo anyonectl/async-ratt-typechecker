@@ -10,7 +10,7 @@ mapType = (Box (Nat `Fun` Nat)) `Fun` ((Sig Nat) `Fun` (Sig Nat))
 
 (-->) :: Type -> Type -> Type
 (-->) = Fun 
-infixr 1 -->
+infixr 1 --> -- number is precidence and r/l after infix makes it non-chainable
 
 mapType = Box (Nat --> Nat) --> Sig Nat --> Sig Nat
 
@@ -29,6 +29,34 @@ mapTerm =
               (App
                 (App (AdvAL (Variable "r")) (Variable "f"))
                 (Adv (Variable "xs")))))))))
+
+-- Variable shorthand
+var :: Var -> Term
+var = Variable
+
+-- Application as operator (left-associative, like function application)
+(@@) :: Term -> Term -> Term
+(@@) = App
+infixl 9 @@
+
+-- Lambda shorthand
+lam :: Var -> Term -> Term
+lam = Lam
+
+-- Let shorthand  
+(.:) :: (Var, Term) -> Term -> Term
+(.:) (x, t1) t2 = Let x t1 t2
+
+-- map = fix r. λf. λs. let x = head s in let xs = tail s in
+--         unbox f x :: delay_cl(xs) (adv_AL r (adv xs))
+mapTerm =
+  Fix "r" $ lam "f" $ lam "s" $
+    ("x",  Head (var "s")) .: -- let x = head s in
+    ("xs", Tail (var "s")) .: -- let xs = tail s in
+      Cons
+        (Unbox (var "f") @@ var "x") -- unbox f x
+        (Delay (Clock (var "xs")) -- delay_cl(xs)
+          (AdvAL (var "r") @@ var "f" @@ Adv (var "xs"))) -- (adv_AL r (adv xs)
 
 mapTermBad :: Term
 mapTermBad = error "TODO"
