@@ -41,20 +41,26 @@ spec = describe "TypeChecker" $ do
       infer projTickedCtx (Proj Fst (Variable ("y"))) `shouldBe` Left (CtxError (VariableNotFound "y"))
 
   describe "Adv" $ do
-
-    let advCtx = Ctx ([("x", EL Nat)], [(Clock Zero, [("x", EL Nat)])])
+    let advCtx = Ctx ([("x", EL Nat)], ([(Clock (Variable "x"), [("x", EL Nat)])]))
 
     it "adv extracts A from EL A when tick is in context" $
       infer advCtx (Adv (Variable "x")) `shouldBe` Right Nat
 
-    it "adv fails when v is not a value" $
-      infer advCtx (Adv (App (Variable "x") UnitVal)) `shouldBe` Left (ExpectedValue (Adv (App (Variable "x") UnitVal)))
+    it "adv fails when argument is not a variable" $
+      infer advCtx (Adv (App (Variable "x") UnitVal))
+        `shouldBe` Left (OtherError "(Adv x) expected variable as argument, but got: App (Variable \"x\") UnitVal")
 
-    let noTickCtx = Ctx ([("x", EL Nat)], [])
     it "adv fails when no tick in context" $
-      infer noTickCtx (Adv (Variable "x")) `shouldBe` Left (CtxError NoTickInContext)
+      let noTickCtx = Ctx ([("x", EL Nat)], [])
+      in infer noTickCtx (Adv (Variable "x"))
+        `shouldBe` Left (CtxError NoTickInContext)
 
-    let wrongTypeCtx = Ctx ([("x", Nat)], [(Clock Zero, [("x", Nat)])])
+    it "adv fails when tick is on wrong clock" $
+      let wrongClockCtx = Ctx ([("x", EL Nat)], ([(Clock (Variable "y"), [("x", EL Nat)])]))
+      in infer wrongClockCtx (Adv (Variable "x"))
+        `shouldBe` Left (CtxError NoTickInContext)
+
     it "adv fails when v does not have a delayed type" $
-      infer wrongTypeCtx (Adv (Variable "x"))
+      let wrongTypeCtx = Ctx ([("x", Nat)], ([(Clock (Variable "x"), [("x", Nat)])]))
+      in infer wrongTypeCtx (Adv (Variable "x"))
         `shouldBe` Left (ExpectedEL { term = Adv (Variable "x"), got = Nat })
