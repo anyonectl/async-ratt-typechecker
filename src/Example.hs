@@ -1,23 +1,16 @@
-module Terms where
+module Example where
 
 import Syntax
 
 -- In haskell type annotation it would be
 -- Box (a -> b) -> Sig a -> Sig b
-mapType :: Type
--- mapType = Fun (Box (Fun Nat Nat)) (Fun (Sig Nat) (Sig Nat))
-mapType = (Box (Nat `Fun` Nat)) `Fun` ((Sig Nat) `Fun` (Sig Nat))
-
-(-->) :: Type -> Type -> Type
-(-->) = Fun 
-infixr 1 --> -- number is precidence and r/l after infix makes it non-chainable
-
-mapType = Box (Nat --> Nat) --> Sig Nat --> Sig Nat
+mapTypeOld :: Type
+mapTypeOld = Fun (Box (Fun Nat Nat)) (Fun (Sig Nat) (Sig Nat))
 
 -- map = fix r. λf. λs. let x = head s in let xs = tail s in
 --         unbox f x :: delay_cl(xs) (adv_AL r (adv xs))
-mapTerm :: Term
-mapTerm =
+mapTermOld :: Term
+mapTermOld =
   Fix "r"
     (Lam "f"
       (Lam "s"
@@ -29,6 +22,16 @@ mapTerm =
               (App
                 (App (AdvAL (Variable "r")) (Variable "f"))
                 (Adv (Variable "xs")))))))))
+
+
+-- -- -- shorthand start -- -- -- 
+-- TODO: Should we expand this?
+-- TODO: Shorthand should be moved to Syntax.hs if we decide to use it
+
+-- Function shorthand
+(-->) :: Type -> Type -> Type
+(-->) = Fun 
+infixr 1 --> -- number is precidence over other operators, and r/l after infix makes it non-chainable
 
 -- Variable shorthand
 var :: Var -> Term
@@ -46,9 +49,16 @@ lam = Lam
 -- Let shorthand  
 (.:) :: (Var, Term) -> Term -> Term
 (.:) (x, t1) t2 = Let x t1 t2
+infixr 1 .:
 
--- map = fix r. λf. λs. let x = head s in let xs = tail s in
---         unbox f x :: delay_cl(xs) (adv_AL r (adv xs))
+-- -- -- shorthand stop -- -- -- 
+
+-- map
+--
+mapType :: Type
+mapType = Box (Nat --> Nat) --> Sig Nat --> Sig Nat
+
+mapTerm :: Term
 mapTerm =
   Fix "r" $ lam "f" $ lam "s" $
     ("x",  Head (var "s")) .: -- let x = head s in
@@ -58,11 +68,19 @@ mapTerm =
         (Delay (Clock (var "xs")) -- delay_cl(xs)
           (AdvAL (var "r") @@ var "f" @@ Adv (var "xs"))) -- (adv_AL r (adv xs)
 
-mapTermBad :: Term
-mapTermBad = error "TODO"
-
+-- map bad does not take a stable function
 mapTermBadType :: Type
-mapTermBadType = error "TODO"
+mapTermBadType = (Nat --> Nat) --> Sig Nat --> Sig Nat
+
+mapTermBad :: Term
+mapTermBad =
+  Fix "r" $ lam "f" $ lam "s" $
+    ("x",  Head (var "s")) .:
+    ("xs", Tail (var "s")) .:
+      Cons
+        (var "f" @@ var "x") -- f applied directly, not unboxed
+        (Delay (Clock (var "xs"))
+          (AdvAL (var "r") @@ var "f" @@ Adv (var "xs"))) -- f crosses tick here!
 
 -- zip
 --
@@ -203,5 +221,5 @@ switchTermBad =
 badTermBad :: Term
 badTermBad = error "TODO"
 
-badTermBadType :: Empty
-badTermBadType = error "TODO"
+badTermBadType :: Type
+badTermBadType = Empty
