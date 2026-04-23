@@ -85,20 +85,20 @@ spec = describe "TypeChecker" $ do
 
     let selectCorrect = Right (Sum (Sum (Prod Nat (EL Nat)) (Prod (EL Nat) Nat)) (Prod Nat Nat))
 
-    it "Select extracts (A1 x EL A2) + (EL A1 x A2) + (A1 x A2) when tick is in context"
-      let ctxWithTick = Ctx ([], ([(Clock (Variable "a"), [("a", EL Nat), ("b", EL Nat)])]))
-      in infer ctxWithTick (Select (Variable "a") (Variable "b")) 
+    it "Select extracts (A1 x EL A2) + (EL A1 x A2) + (A1 x A2) when tick single variable"
+      let ctx = Ctx ([], ([(Clock (Variable "a"), [("a", EL Nat), ("b", EL Nat)])]))
+      in infer ctx (Select (Variable "a") (Variable "b")) 
       `shouldBe` selectCorrect
 
     it "Select extracts (A1 x EL A2) + (EL A1 x A2) + (A1 x A2) when tick is on union of clocks"
-      let ctxWithTick = Ctx ([], [ ((ClockUnion (Clock (Variable "a")) (Clock (Variable "b")))
+      let ctx = Ctx ([], [ ((ClockUnion (Clock (Variable "a")) (Clock (Variable "b")))
                                    , [("a", EL Nat), ("b", EL Nat)])])      
-      in infer ctxWithTick (Select (Variable "a") (Variable "b")) 
+      in infer ctx (Select (Variable "a") (Variable "b")) 
       `shouldBe` selectCorrect
 
     it "Select fails when variable not in latest ticked"
-      let ctxWithTick = Ctx ([], [ (Clock Zero,            [("a", EL Nat)])
+      let ctx = Ctx ([], [ (Clock Zero,            [("a", EL Nat)])
                                  , (Clock (Variable "a"),  [("a", EL Nat), ("b", EL Nat)]) ])      
-      in infer ctxWithTick (Select (Variable "a") (Variable "b")) 
+      in infer ctx (Select (Variable "a") (Variable "b")) 
       `shouldBe` Left (CtxError NoTickInContext)
 
