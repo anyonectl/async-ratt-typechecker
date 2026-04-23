@@ -50,6 +50,11 @@ spec = describe "TypeChecker" $ do
       infer advCtx (Adv (App (Variable "x") UnitVal))
         `shouldBe` Left (OtherError "(Adv x) expected variable as argument, but got: App (Variable \"x\") UnitVal")
 
+    it "adv extracts nested EL A from EL (EL A) when tick is in context" $
+      let advNestedCtx = Ctx ([], ([(Clock (Variable "e"), [("e", EL (EL Nat))])]))
+      in infer advNestedCtx (Adv (Variable "e")) 
+        `shouldBe` Right (EL Nat)
+
     it "adv fails when no tick in context" $
       let noTickCtx = Ctx ([("x", EL Nat)], [])
       in infer noTickCtx (Adv (Variable "x"))
