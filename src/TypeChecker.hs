@@ -105,8 +105,16 @@ infer ctx (Select v1 v2) =
                                 (Prod a1 a2))
         _ -> Left (OtherError "Select expected two delayed computations of the same type")
 
--- Always
--- Unbox
+infer ctx (Always t) = do
+  let stableCtx' = stableCtx ctx
+  ty <- infer stableCtx' t
+  Right (Box ty)
+
+infer ctx (Unbox t) = do
+  ty <- infer ctx t
+  case ty of
+    Box a -> Right a
+    _     -> Left $ OtherError "(Unbox t) expected Box A"
 
 -- Wait (17)
 infer ctx (Wait k) = case k of
