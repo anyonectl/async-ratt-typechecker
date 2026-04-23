@@ -1,6 +1,6 @@
 module TypeChecker where
 
-import Data.Bifunctor (first) -- first applies a function to the left side of an Either, leaving the right side untouched. We use it to wrap incoming ContextError as TypeError
+import Data.Bifunctor (first) -- first applies a function to the left side of an Either, leaving the right side untouched. We use it to wrap incoming ContextError as TypeError.  --  first CtxError wraps a ContextError into a TypeError, so the types line up in the do block
 
 import Syntax
 import Context
@@ -67,16 +67,13 @@ infer ctx (Case t x1 t1 x2 t2) = do
         else Left (OtherError "Case branches have different types")
     _ -> Left (OtherError "Case expected sum type as argument")
 
--- Adv
-infer ctx (Adv v) =
-  if not $ isValue v
-    then Left $ ExpectedValue (Adv v)
-    else do -- check that v is a value (needs to be a variable)
-      ctxBeforeTick <- first CtxError $ preTick ctx -- take Maybe arg of clock we expect (chops off tick AND checks the clock) --  first CtxError wraps a ContextError into a TypeError, so the types line up in the do block
-      ty <- infer ctxBeforeTick v
-      case ty of
-        EL a -> Right a
-        _    -> Left $ ExpectedEL {term = Adv v, got = ty}
+infer ctx (Adv (Variable x)) = do
+  ctxBeforeTick <- first CtxError $ preTickOnSpecificClock ctx x
+  tyBeforeTick <- first CtxError $ lookupType x ctxBeforeTick
+  case tyBeforeTick of
+    EL a -> Right a
+    _    -> Left $ ExpectedEL {term = Adv (Variable x), got = tyBeforeTick} 
+infer _ctx (Adv _) = Left $ OtherError "(Adv x) only takes variables"
 
 -- AdvAL 
 infer ctx (AdvAL v) = -- check that v is a value (needs to be a variable)
@@ -197,10 +194,7 @@ check ctx (Case t x1 t1 x2 t2) ty = do
 check ctx (Delay cl t) (EL ty) = do
   check (addTick cl ctx) t ty
   return (EL ty) -- need to understand better what return does here
-
-check _ (Delay _ _) expected =
-    Left (OtherError
-        ("not a delayed type: " ++ show expected))
+check _ (Delay _cl _t) _ty = Left $ ExpectedEL { term = Delay _cl _t, got = _ty }
 
 -- Always
 -- Unbox

@@ -62,8 +62,13 @@ preTick :: Ctx -> Either ContextError Ctx -- need to also check if a term has a 
 preTick (Ctx (_, (_, simple) : rest)) = Right (Ctx (simple, rest))
 preTick _                             = Left NoTickInContext
 
--- Advance value of exist later
--- advance :: Ctx -> 
--- flip the addTick
 
--- Fix and box
+-- Takes a context and a term
+-- Checks if there is a previous tick on a clock belonging to a specific variable
+-- Needed for (Adv x) and (Select v1 v2) where we can only typecheck if the previous tick belonged to a clock on the same term (variable) as the one advanced/selected
+preTickOnSpecificClock :: Ctx -> Term -> Either ContextError Ctx
+preTickOnSpecificClock (Ctx (_unticked, (Clock x1, simple) : rest)) x2 =
+    if x1 == x2 
+        then Right (Ctx (simple, rest))
+        else Left NoTickInContext
+preTickOnSpecificClock _ctx _t  = Left $ OtherContextError "Prev tick in context was not on variable x"
