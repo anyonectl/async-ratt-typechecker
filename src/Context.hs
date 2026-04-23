@@ -6,10 +6,13 @@ import Data.Function ((&))
 
 type SimpleCtx = [(Var, Type)]
 
-newtype Ctx =  Ctx (SimpleCtx, [(ClockExpr, SimpleCtx)])
+newtype Ctx = Ctx (SimpleCtx, [(ClockExpr, SimpleCtx)]) -- if you read from right to left: SimpleCtx, then a tick, then a new SimpleCtx
+
+isEmptyCtx :: Ctx -> Bool
+isEmptyCtx (Ctx ([], [])) = True
+isEmptyCtx _              = False
 
 isTickfree :: Ctx -> Bool
-isTickfree (Ctx ([], [])) = True
 isTickfree (Ctx (_, []))  = True
 isTickfree _              = False
 
@@ -39,33 +42,23 @@ lookupType var (Ctx (simple, ticked))   =
   where
     -- Search for variable in ticked contexts (variable must have stable type)
     searchTicked :: Var -> [(ClockExpr, SimpleCtx)] -> Either ContextError Type
-    searchTicked var []                    = Left (VariableNotFound var)
-    searchTicked var ((_, simple') : rest) =
-        case lookup var simple' of
+    searchTicked var' []                    = Left (VariableNotFound var')
+    searchTicked var' ((_, simple') : rest) =
+        case lookup var' simple' of
             Just ty | isStableType ty -> Right ty -- only stable types can cross ticks
-            Just ty -> Left (UnstableType var ty)
-            Nothing -> searchTicked var rest
+            Just ty -> Left (UnstableType var' ty)
+            Nothing -> searchTicked var' rest
 
 -- Remove all ticks and non-stable variable bindings from a typing context
--- But maybe this is unnecessarily inefficient...? Consider using map/filter?
-stableCtx :: Ctx -> Ctx
+-- But maybe this is unnecessarily inefficient...?
+stableCtx :: Ctx -> Ctx -- (Ctx ([(var, ty)], (tick, sc)))
 stableCtx (Ctx ([], [])) = Ctx ([], [])
-stableCtx ctx            = Ctx (ctx & removeTicks & removeNonStable, [])
-    where
-        removeTicks (Ctx ([], []))                  = []
-        removeTicks (Ctx (sc, []))                  = sc
-        -- E.g. here, we concatenate lists, where the first list grows after each recursive step... so the running time also grows. 
-        -- Would it be better to prepend, even though newest variables will then be at the end of the list?
-        removeTicks (Ctx (sc, (tick, sc') : rest))  = sc ++ removeTicks (Ctx (sc', rest))
-        
-        removeNonStable []      = []
-        removeNonStable ((x, ty) : rest)
-            | isStableType ty   = (x, ty) : removeNonStable rest
-            | otherwise         = removeNonStable rest
+stableCtx (Ctx (sc, ticks)) =
+    Ctx(concatMap (filter (\(_, ty) -> isStableType ty)) (sc : map snd ticks), [])
 
 -- Remove the latest tick and all variable bindings added after that tick
 -- needed for select, adv
-preTick :: Ctx -> Either ContextError Ctx
+preTick :: Ctx -> Either ContextError Ctx -- need to also check if a term has a specific clock ..
 preTick (Ctx (_, (_, simple) : rest)) = Right (Ctx (simple, rest))
 preTick _                             = Left NoTickInContext
 

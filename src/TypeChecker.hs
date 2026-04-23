@@ -71,18 +71,18 @@ infer ctx (Case t x1 t1 x2 t2) = do
 infer ctx (Adv v) =
   if not $ isValue v
     then Left $ ExpectedValue (Adv v)
-    else do
-      ctxBeforeTick <- first CtxError $ preTick ctx --  first CtxError wraps a ContextError into a TypeError, so the types line up in the do block
+    else do -- check that v is a value (needs to be a variable)
+      ctxBeforeTick <- first CtxError $ preTick ctx -- take Maybe arg of clock we expect (chops off tick AND checks the clock) --  first CtxError wraps a ContextError into a TypeError, so the types line up in the do block
       ty <- infer ctxBeforeTick v
       case ty of
         EL a -> Right a
         _    -> Left $ ExpectedEL {term = Adv v, got = ty}
 
--- AdvAL
-infer ctx (AdvAL v) =
+-- AdvAL 
+infer ctx (AdvAL v) = -- check that v is a value (needs to be a variable)
   if not $ isValue v
     then Left $ ExpectedValue (AdvAL v)
-    else do
+    else do 
       ctxBeforeTick <- first CtxError $ preTick ctx
       ty <- infer ctxBeforeTick v
       case ty of
