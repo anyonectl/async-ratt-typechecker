@@ -2,6 +2,18 @@ module Terms where
 
 import Syntax
 
+-- In haskell type annotation it would be
+-- Box (a -> b) -> Sig a -> Sig b
+mapType :: Type
+-- mapType = Fun (Box (Fun Nat Nat)) (Fun (Sig Nat) (Sig Nat))
+mapType = (Box (Nat `Fun` Nat)) `Fun` ((Sig Nat) `Fun` (Sig Nat))
+
+(-->) :: Type -> Type -> Type
+(-->) = Fun 
+infixr 1 -->
+
+mapType = Box (Nat --> Nat) --> Sig Nat --> Sig Nat
+
 -- map = fix r. λf. λs. let x = head s in let xs = tail s in
 --         unbox f x :: delay_cl(xs) (adv_AL r (adv xs))
 mapTerm :: Term
@@ -17,9 +29,6 @@ mapTerm =
               (App
                 (App (AdvAL (Variable "r")) (Variable "f"))
                 (Adv (Variable "xs")))))))))
-
-mapType :: Type
-mapType = Fun (Box (Fun Nat Nat)) (Fun (Sig Nat) (Sig Nat))
 
 mapTermBad :: Term
 mapTermBad = error "TODO"
