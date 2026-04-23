@@ -37,7 +37,7 @@ infer ctx (Proj i t) = do
     (Fst, Prod a _) -> Right a
     (Snd, Prod _ b) -> Right b
     _               -> Left $ OtherError "Proj: expected a product type"
-    
+
 -- Let
 infer ctx (Let x t1 t2) = do
   ty1 <- infer ctx t1
@@ -72,19 +72,17 @@ infer ctx (Adv (Variable x)) = do
   tyBeforeTick <- first CtxError $ lookupType x ctxBeforeTick
   case tyBeforeTick of
     EL a -> Right a
-    _    -> Left $ ExpectedEL {term = Adv (Variable x), got = tyBeforeTick} 
-infer _ctx (Adv _) = Left $ OtherError "(Adv x) only takes variables"
+    _    -> Left $ ExpectedEL {term = Adv (Variable x), got = tyBeforeTick}
+infer _ctx (Adv _x) = Left $ OtherError ("(AdvAL x) expected variable as argument, but got " ++ show _x)
 
 -- AdvAL 
-infer ctx (AdvAL v) = -- check that v is a value (needs to be a variable)
-  if not $ isValue v
-    then Left $ ExpectedValue (AdvAL v)
-    else do 
-      ctxBeforeTick <- first CtxError $ preTick ctx
-      ty <- infer ctxBeforeTick v
-      case ty of
-        AL a -> Right a
-        _    -> Left $ ExpectedAL { term = AdvAL v, got = ty}
+infer ctx (AdvAL (Variable x)) = do -- check that v is a value (needs to be a variable)
+  ctxBeforeTick <- first CtxError $ preTick ctx
+  ty <- infer ctxBeforeTick (Variable x)
+  case ty of
+    AL a -> Right a
+    _    -> Left $ ExpectedAL { term = AdvAL (Variable x), got = ty}
+infer _ctx (AdvAL _x) = Left $ OtherError ("(AdvAL x) expected variable as argument, but got " ++ show _x)
 
 -- Select
 infer ctx (Select v1 v2) =
