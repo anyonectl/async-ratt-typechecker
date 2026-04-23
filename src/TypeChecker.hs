@@ -75,7 +75,7 @@ infer ctx (Adv (Variable x)) = do
   case tyBeforeTick of
     EL a -> Right a
     _    -> Left $ ExpectedEL {term = Adv (Variable x), got = tyBeforeTick}
-infer _ctx (Adv _x) = Left $ OtherError ("(Adv x) expected variable as argument, but got " ++ show _x)
+infer _ctx (Adv _x) = Left $ OtherError ("(Adv x) expected variable as argument, but got: " ++ show _x)
 
 -- AdvAL 
 infer ctx (AdvAL (Variable x)) = do -- check that v is a value (needs to be a variable)
@@ -84,7 +84,7 @@ infer ctx (AdvAL (Variable x)) = do -- check that v is a value (needs to be a va
   case ty of
     AL a -> Right a
     _    -> Left $ ExpectedAL { term = AdvAL (Variable x), got = ty}
-infer _ctx (AdvAL _x) = Left $ OtherError ("(AdvAL x) expected variable as argument, but got " ++ show _x)
+infer _ctx (AdvAL _x) = Left $ OtherError ("(AdvAL x) expected variable as argument, but got: " ++ show _x)
 
 -- Select
 infer ctx (Select (Variable x1) (Variable x2)) = do
