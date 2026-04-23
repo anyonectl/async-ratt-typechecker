@@ -22,11 +22,11 @@ isTickfree _              = False
 addVar :: Var -> Type -> Ctx -> Ctx
 addVar var ty (Ctx ([], []))            = Ctx ([(var, ty)], [])
 addVar var ty (Ctx (simple, ticked))    = Ctx (update simple, ticked)
-    where
-        update []       = [(var, ty)]
-        update ((v, t) : rest)
-            | v == var  = (var, ty) : rest
-            | otherwise = (v, t) : update rest
+  where
+    update []       = [(var, ty)]
+    update ((v, t) : rest)
+    | v == var  = (var, ty) : rest
+    | otherwise = (v, t) : update rest
 
 -- Extend the typing context with a tick on some clock
 addTick :: ClockExpr -> Ctx -> Ctx
@@ -36,25 +36,25 @@ addTick cl (Ctx (simple, ticked))   = Ctx ([], (cl, simple) : ticked)
 lookupType :: Var -> Ctx -> Either ContextError Type
 lookupType _   (Ctx ([], []))           = Left (ContextIsEmpty "cannot lookup in empty context")
 lookupType var (Ctx (simple, ticked))   =
-    case lookup var simple of
-        Just ty -> Right ty
-        Nothing -> searchTicked var ticked
+  case lookup var simple of
+    Just ty -> Right ty
+    Nothing -> searchTicked var ticked
   where
     -- Search for variable in ticked contexts (variable must have stable type)
     searchTicked :: Var -> [(ClockExpr, SimpleCtx)] -> Either ContextError Type
     searchTicked var' []                    = Left (VariableNotFound var')
     searchTicked var' ((_, simple') : rest) =
-        case lookup var' simple' of
-            Just ty | isStableType ty -> Right ty -- only stable types can cross ticks
-            Just ty -> Left (UnstableType var' ty)
-            Nothing -> searchTicked var' rest
+      case lookup var' simple' of
+        Just ty | isStableType ty -> Right ty -- only stable types can cross ticks
+        Just ty -> Left (UnstableType var' ty)
+        Nothing -> searchTicked var' rest
 
 -- Remove all ticks and non-stable variable bindings from a typing context
 -- But maybe this is unnecessarily inefficient...?
 stableCtx :: Ctx -> Ctx -- (Ctx ([(var, ty)], (tick, sc)))
 stableCtx (Ctx ([], [])) = Ctx ([], [])
 stableCtx (Ctx (sc, ticks)) =
-    Ctx(concatMap (filter (\(_, ty) -> isStableType ty)) (sc : map snd ticks), [])
+  Ctx (concatMap (filter (\(_, ty) -> isStableType ty)) (sc : map snd ticks), [])
 
 -- Remove the latest tick and all variable bindings added after that tick
 -- needed for select, adv
@@ -63,12 +63,20 @@ preTick (Ctx (_, (_, simple) : rest)) = Right (Ctx (simple, rest))
 preTick _                             = Left NoTickInContext
 
 
--- Takes a context and a term
--- Checks if there is a previous tick on a clock belonging to a specific variable
--- Needed for (Adv x) and (Select v1 v2) where we can only typecheck if the previous tick belonged to a clock on the same term (variable) as the one advanced/selected
-preTickOnSpecificClock :: Ctx -> Term -> Either ContextError Ctx
-preTickOnSpecificClock (Ctx (_unticked, (Clock x1, simple) : rest)) x2 =
-    if x1 == x2 
-        then Right (Ctx (simple, rest))
-        else Left NoTickInContext
-preTickOnSpecificClock _ctx _x  = Left $ OtherContextError ("Previous tick in the context was not on variable " ++ show _x)
+-- Used by Adv: checks that the most recent tick belongs to a specific term
+preTickOnSpecificTerm :: Ctx -> Term -> Either ContextError Ctx
+preTickOnSpecificTerm (Ctx (_, (Clock t, simple) : rest)) target
+  | t == target = Right (Ctx (simple, rest))
+preTickOnSpecificTerm (Ctx (_, _ : _)) _ = Left NoTickInContext
+preTickOnSpecificTerm _                _ = Left NoTickInContext
+
+-- Used by Select: checks that the most recent tick matches a clock expression
+-- Handles nested ClockUnions recursively 
+preTickOnSpecificClock :: Ctx -> ClockExpr -> Either ContextError Ctx
+preTickOnSpecificClock (Ctx (_, (cl, simple) : rest)) target
+  | cl == target           = Right (Ctx (simple, rest)) -- if `cl == target` fails then haskell tries the next pattern
+preTickOnSpecificClock ctx (ClockUnion cl1 cl2) = 
+  case preTickOnSpecificClock ctx cl1 of
+    Right ctx' -> Right ctx'
+    Left _     -> preTickOnSpecificClock ctx cl2
+preTickOnSpecificClock _ _  = Left NoTickInContext
