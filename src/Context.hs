@@ -25,8 +25,8 @@ addVar var ty (Ctx (simple, ticked))    = Ctx (update simple, ticked)
   where
     update []       = [(var, ty)]
     update ((v, t) : rest)
-    | v == var  = (var, ty) : rest
-    | otherwise = (v, t) : update rest
+      | v == var  = (var, ty) : rest
+      | otherwise = (v, t) : update rest
 
 -- Extend the typing context with a tick on some clock
 addTick :: ClockExpr -> Ctx -> Ctx
