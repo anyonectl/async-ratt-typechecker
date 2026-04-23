@@ -2,7 +2,6 @@ module Context where
 
 import Syntax
 import ErrorTypes
-import Data.Function ((&))
 
 type SimpleCtx = [(Var, Type)]
 
