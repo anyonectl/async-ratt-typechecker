@@ -140,12 +140,14 @@ infer ctx (Cons hd tl) = do
   check ctx tl (EL (Sig headTy))
   return (Sig headTy) -- need to understand better what return does here
 
+-- Fix
+infer _ (Fix _ _) = Left $ OtherError "Cannot infer type of fix, annotate with expected type"
+
 -- Switch from infer mode to check mode (when do we need this?)
 infer ctx (Anno t ty) = check ctx t ty
 
 -- Default
-infer _ _ = Left (OtherError "Infer failed..")
-
+infer _ t = Left $ OtherError ("No infer rule for term: " ++ show t)
 
 ---------------------------
 -- CHECK
