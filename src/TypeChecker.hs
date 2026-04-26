@@ -1,6 +1,6 @@
 module TypeChecker where
 
-import Data.Bifunctor (first) -- first applies a function to the left side of an Either, leaving the right side untouched. We use it to wrap incoming ContextError as TypeError
+import Data.Bifunctor (first) -- first applies a function to the left side of an Either, leaving the right side untouched. We use it to wrap incoming ContextError as TypeError.  --  first CtxError wraps a ContextError into a TypeError, so the types line up in the do block
 
 import Syntax
 import Context
@@ -37,7 +37,7 @@ infer ctx (Proj i t) = do
     (Fst, Prod a _) -> Right a
     (Snd, Prod _ b) -> Right b
     _               -> Left $ OtherError "Proj: expected a product type"
-    
+
 -- Let
 infer ctx (Let x t1 t2) = do
   ty1 <- infer ctx t1
@@ -49,9 +49,9 @@ infer ctx (App f t) = do
   fTy <- infer ctx f
   case fTy of
     Fun a b -> do
-      check ctx t a
-      Right b
-    _ -> Left (OtherError "Application expected function type")
+                _ <- check ctx t a
+                Right b
+    _       -> Left (OtherError "Application expected function type")
 
 -- Case
 infer ctx (Case t x1 t1 x2 t2) = do
@@ -68,62 +68,58 @@ infer ctx (Case t x1 t1 x2 t2) = do
     _ -> Left (OtherError "Case expected sum type as argument")
 
 -- Adv
-infer ctx (Adv v) =
-  if not $ isValue v
-    then Left $ ExpectedValue (Adv v)
-    else do -- check that v is a value (needs to be a variable)
-      ctxBeforeTick <- first CtxError $ preTick ctx -- take Maybe arg of clock we expect (chops off tick AND checks the clock) --  first CtxError wraps a ContextError into a TypeError, so the types line up in the do block
-      ty <- infer ctxBeforeTick v
-      case ty of
-        EL a -> Right a
-        _    -> Left $ ExpectedEL {term = Adv v, got = ty}
+infer ctx (Adv (Variable x)) = do
+  let cl = Clock (Variable x)
+  ctxBeforeTick <- first CtxError $ preTickOnSpecificClock ctx cl
+  tyBeforeTick <- first CtxError $ lookupType x ctxBeforeTick
+  case tyBeforeTick of
+    EL a -> Right a
+    _    -> Left $ ExpectedEL {term = Adv (Variable x), got = tyBeforeTick}
+infer _ctx (Adv _x) = Left $ OtherError ("(Adv x) expected variable as argument, but got: " ++ show _x)
 
 -- AdvAL 
-infer ctx (AdvAL v) = -- check that v is a value (needs to be a variable)
-  if not $ isValue v
-    then Left $ ExpectedValue (AdvAL v)
-    else do 
-      ctxBeforeTick <- first CtxError $ preTick ctx
-      ty <- infer ctxBeforeTick v
-      case ty of
-        AL a -> Right a
-        _    -> Left $ ExpectedAL { term = AdvAL v, got = ty}
+infer ctx (AdvAL (Variable x)) = do -- check that v is a value (needs to be a variable)
+  ctxBeforeTick <- first CtxError $ preTick ctx
+  ty <- infer ctxBeforeTick (Variable x)
+  case ty of
+    AL a -> Right a
+    _    -> Left $ ExpectedAL { term = AdvAL (Variable x), got = ty}
+infer _ctx (AdvAL _x) = Left $ OtherError ("(AdvAL x) expected variable as argument, but got: " ++ show _x)
 
 -- Select
-infer ctx (Select v1 v2) =
-  if not (isValue v1) || not (isValue v2)
-    then Left $ ExpectedValue (Select v1 v2)
-    else do
-      ty1 <- infer ctx v1 -- premise 1: v_1 : EL a_1
-      ty2 <- infer ctx v2 -- premise 2: v_2 : EL a_2
-      -- premise 3: the clock is a union of cl(v_1) and cl(v_2)
-      -- how do we check premise 3? 
-      ctxBeforeTick <- first CtxError $ preTick ctx -- premise 4: there is a tick free context
-      case (ty1, ty2) of
-        (EL a1, EL a2) -> Right (Sum (Sum (Prod a1 (EL a2))
-                                          (Prod (EL a1) a2))
-                                (Prod a1 a2))
-        _ -> Left (OtherError "Select expected two delayed computations of the same type")
+infer ctx (Select (Variable x1) (Variable x2)) = do
+  let clockUnion = ClockUnion (Clock (Variable x1)) (Clock (Variable x2))
+  ctxBeforeTick <- first CtxError $ preTickOnSpecificClock ctx clockUnion
+  ty1 <- infer ctxBeforeTick (Variable x1)
+  ty2 <- infer ctxBeforeTick (Variable x2)
+  case (ty1, ty2) of
+    (EL a1, EL a2) -> Right (Sum (Sum (Prod a1 (EL a2))
+                                      (Prod (EL a1) a2))
+                            (Prod a1 a2))
+    _              -> Left $ OtherError "Select: expected two delayed computations EL A1 and EL A2"
+infer _ctx (Select _x1 _x2) = Left $ OtherError ("(Select x1 x2) expected variable as argument, but got: " ++ show _x1 ++ " and " ++ show _x2)
 
+-- Always
 infer ctx (Always t) = do
   let stableCtx' = stableCtx ctx
   ty <- infer stableCtx' t
   Right (Box ty)
 
+-- Unbox
 infer ctx (Unbox t) = do
   ty <- infer ctx t
   case ty of
     Box a -> Right a
     _     -> Left $ OtherError "(Unbox t) expected Box A"
-
--- Wait (17)
-infer ctx (Wait k) = case k of
+    
+-- Wait
+infer _ (Wait k) = case k of
   Push a    -> Right (EL a)
   PushBuf a -> Right (EL a)
   _         -> Left $  ExpectedPushChannel (Wait k)
 
--- Read (18)
-infer ctx (Read k) = case k of
+-- Read 
+infer _ (Read k) = case k of
   Buf a     -> Right a
   PushBuf a -> Right a
   _         -> Left $ ExpectedBufferChannel (Read k)
@@ -145,14 +141,17 @@ infer ctx (Tail t) = do
 -- Cons
 infer ctx (Cons hd tl) = do
   headTy <- infer ctx hd
-  check ctx tl (EL (Sig headTy))
+  _      <- check ctx tl (EL (Sig headTy))
   return (Sig headTy) -- need to understand better what return does here
+
+-- Fix
+infer _ (Fix _ _) = Left $ OtherError "Cannot infer type of fix, annotate with expected type"
 
 -- Switch from infer mode to check mode (when do we need this?)
 infer ctx (Anno t ty) = check ctx t ty
 
 -- Default
-infer _ _ = Left (OtherError "Infer failed..")
+infer _ t = Left $ OtherError ("No infer rule for term: " ++ show t)
 
 
 ---------------------------
@@ -164,8 +163,8 @@ check :: Ctx -> Term -> Type -> Either TypeError Type
 check ctx (Pair t1 t2) ty =
   case ty of
     Prod a b -> do
-      check ctx t1 a
-      check ctx t2 b
+      _ <- check ctx t1 a
+      _ <- check ctx t2 b
       Right ty
     _       -> Left (OtherError "Pair expected a product type")
 
@@ -196,27 +195,20 @@ check ctx (Case t x1 t1 x2 t2) ty = do
     Sum a1 a2 -> do               -- check that t is a sum type
       let ctx1 = addVar x1 a1 ctx
       let ctx2 = addVar x2 a2 ctx
-      check ctx1 t1 ty
-      check ctx2 t2 ty -- the error checking is better when using infer..? 
+      _ <- check ctx1 t1 ty
+      _ <- check ctx2 t2 ty -- the error checking is better when using infer..? 
       Right ty                    -- then for each extended context branch, check that the type of t1 and t2 are ty
     _ -> Left (OtherError "Case argument is not a sum type")
 
 -- Delay
 check ctx (Delay cl t) (EL ty) = do
-  check (addTick cl ctx) t ty
+  _ <- check (addTick cl ctx) t ty
   return (EL ty) -- need to understand better what return does here
+check _ (Delay _cl _t) _ty = Left $ ExpectedEL { term = Delay _cl _t, got = _ty }
 
-check _ (Delay _ _) expected =
-    Left (OtherError
-        ("not a delayed type: " ++ show expected))
 
--- Always
--- Unbox
-
-check _ Never ty = 
-  case ty of 
-    EL a  -> Right (EL a)
-    _     -> Left $ ExpectedEL { term = Never, got = ty }
+check _ Never (EL a) = Right (EL a)
+check _ Never ty      = Left $ ExpectedEL { term = Never, got = ty }
 
 -- Fix
 check ctx (Fix x t) ty = do
@@ -225,13 +217,14 @@ check ctx (Fix x t) ty = do
 
 -- Cons
 check ctx (Cons hd tl) (Sig ty) = do
-  check ctx hd ty
-  check ctx tl (EL (Sig ty))
+  _ <- check ctx hd ty
+  _ <- check ctx tl (EL (Sig ty))
   return (Sig ty) -- need to understand better what return does here
 
 -- Default
 check ctx t ty =
   case infer ctx t of
     Right ty' | ty == ty' -> Right ty
-    Right ty'             -> Left (TypeMismatch { expected = ty, got = ty' })
+    Right ty'             -> Left (TypeMismatch { term = t, expected = ty, got = ty' })
     Left err              -> Left err
+
