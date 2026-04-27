@@ -99,8 +99,19 @@ infer ctx (Select (Variable x1) (Variable x2)) = do
     _              -> Left $ OtherError "Select: expected two delayed computations EL A1 and EL A2"
 infer _ctx (Select _x1 _x2) = Left $ OtherError ("(Select x1 x2) expected variable as argument, but got: " ++ show _x1 ++ " and " ++ show _x2)
 
--- Unbox
+-- Always
+infer ctx (Always t) = do
+  let stableCtx' = stableCtx ctx
+  ty <- infer stableCtx' t
+  Right (Box ty)
 
+-- Unbox
+infer ctx (Unbox t) = do
+  ty <- infer ctx t
+  case ty of
+    Box a -> Right a
+    _     -> Left $ OtherError "(Unbox t) expected Box A"
+    
 -- Wait
 infer _ (Wait k) = case k of
   Push a    -> Right (EL a)
@@ -141,6 +152,7 @@ infer ctx (Anno t ty) = check ctx t ty
 
 -- Default
 infer _ t = Left $ OtherError ("No infer rule for term: " ++ show t)
+
 
 ---------------------------
 -- CHECK
@@ -194,8 +206,6 @@ check ctx (Delay cl t) (EL ty) = do
   return (EL ty) -- need to understand better what return does here
 check _ (Delay _cl _t) _ty = Left $ ExpectedEL { term = Delay _cl _t, got = _ty }
 
--- Always
--- Unbox
 
 check _ Never (EL a) = Right (EL a)
 check _ Never ty      = Left $ ExpectedEL { term = Never, got = ty }
