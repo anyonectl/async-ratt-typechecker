@@ -68,6 +68,14 @@ infer ctx (Case t x1 t1 x2 t2) = do
     _ -> Left (OtherError "Case expected sum type as argument")
 
 -- Adv
+{- 
+infer on adv:
+it is not enough to cover variables (despite what I said at last meeting)
+also needs to consider wait_kappa
+same goes for select (and for corresponding cases of check ?
+Only use the check for variable or wait_kappa to decide whether argument t is a value or not. Then just
+check/infer type of t as described by typing rule
+-}
 infer ctx (Adv (Variable x)) = do
   let cl = Clock (Variable x)
   ctxBeforeTick <- first CtxError $ preTickOnSpecificClock ctx cl
@@ -75,8 +83,16 @@ infer ctx (Adv (Variable x)) = do
   case tyBeforeTick of
     EL a -> Right a
     _    -> Left $ ExpectedEL {term = Adv (Variable x), got = tyBeforeTick}
-infer _ctx (Adv _x) = Left $ OtherError ("(Adv x) expected variable as argument, but got: " ++ show _x)
 
+infer ctx (Adv (Wait chan)) = do
+  let cl = Clock (Wait chan)
+  ctxBeforeTick <- first CtxError $ preTickOnSpecificClock ctx cl
+  tyBeforeTick  <- infer ctxBeforeTick (Wait chan)
+  case tyBeforeTick of
+    EL a -> Right a
+    _    -> Left $ ExpectedEL { term = Adv (Wait chan), got = tyBeforeTick }
+  
+infer _ctx (Adv v) = Left $ OtherError ("(Adv v) expected variable or wait_κ as argument, but got: " ++ show v)
 -- AdvAL 
 infer ctx (AdvAL (Variable x)) = do -- check that v is a value (needs to be a variable)
   ctxBeforeTick <- first CtxError $ preTick ctx
