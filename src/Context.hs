@@ -29,7 +29,6 @@ addVar var ty (Ctx (simple, ticked))    = Ctx (update simple, ticked)
 
 -- Extend the typing context with a tick on some clock
 addTick :: ClockExpr -> Ctx -> Ctx
-addTick cl (Ctx ([], []))           = Ctx ([], [(cl, [])])
 addTick cl (Ctx (simple, ticked))   = Ctx ([], (cl, simple) : ticked)
 
 lookupType :: Var -> Ctx -> Either ContextError Type
@@ -51,7 +50,6 @@ lookupType var (Ctx (simple, ticked))   =
 -- Remove all ticks and non-stable variable bindings from a typing context
 -- But maybe this is unnecessarily inefficient...?
 stableCtx :: Ctx -> Ctx -- (Ctx ([(var, ty)], (tick, sc)))
-stableCtx (Ctx ([], [])) = Ctx ([], [])
 stableCtx (Ctx (sc, ticks)) =
   Ctx (concatMap (filter (\(_, ty) -> isStableType ty)) (sc : map snd ticks), [])
 
