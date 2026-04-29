@@ -7,7 +7,7 @@ import Syntax
 mapTypeOld :: Type
 mapTypeOld = Fun (Box (Fun Nat Nat)) (Fun (Sig Nat) (Sig Nat))
 
--- map = fix r. λf. λs. let x = head s in let xs = tail s in
+-- map = fix r . λ f . λ s. let x = head s in let xs = tail s in
 --         unbox f x :: delay_cl(xs) (adv_AL r (adv xs))
 mapTermOld :: Term
 mapTermOld =
@@ -58,6 +58,8 @@ infixr 1 .:
 mapType :: Type
 mapType = Box (Nat --> Nat) --> Sig Nat --> Sig Nat
 
+-- map = fix r . λ f . λ s. let x = head s in let xs = tail s in
+--       unbox f x :: delay_cl(xs) (adv_AL r (adv xs))
 mapTerm :: Term
 mapTerm =
   Fix "r" $ lam "f" $ lam "s" $
