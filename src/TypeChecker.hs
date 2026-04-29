@@ -113,10 +113,10 @@ infer ctx (Unbox t) = do
     _     -> Left $ OtherError "(Unbox t) expected Box A"
     
 -- Wait
-infer _ (Wait k) = case k of
-  Push a    -> Right (EL a)
-  PushBuf a -> Right (EL a)
-  _         -> Left $  ExpectedPushChannel (Wait k)
+infer _ (Wait k) = 
+  if isPush k && k `elem` inputChans
+    then Right (EL (chanType k))
+    else Left $  ExpectedPushChannel (Wait k)
 
 -- Read 
 infer _ (Read k) = case k of
