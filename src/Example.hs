@@ -6,27 +6,13 @@ import Syntax
 --         unbox f x :: delay_cl(xs) (adv_AL r f (adv xs))
 mapTerm :: Term
 mapTerm =
-  Fix "r" -- r: recurse on map
-    (Lam "f" -- f: function argument for map
-      (Lam "s" -- s: the signal
-        (Let "x"  (Head (Variable "s")) -- x: head of s
-          (Let "xs" (Tail (Variable "s")) -- xs: tail of s
-            (Cons -- construct a new signal
-              (App -- apply f (which is stable) to the head
-                (Unbox (Variable "f"))
-                (Variable "x"))
-              (Delay -- cast the tail of s to be EL
-                (Clock (Variable "xs"))
-                (App -- recurse with 
-                  (App (AdvAL (Variable "r")) (Variable "f"))
-                  (Adv (Variable "xs"))
-                )
-              )
-            )
-          )
-        )
-      )
-    )
+  Fix "r" $ lam "f" $ lam "s" $
+        let_ "x"  (Head (var "s")) $ -- x: head of s
+          let_ "xs" (Tail (var "s")) $ -- xs: tail of s
+            Cons -- construct a new signal
+              (Unbox (var "f") @@ var "x")
+              (Delay (Clock (var "xs"))
+                (AdvAL (var "r") @@ var "f" @@ Adv (var "xs"))) -- map f xs' 
 
 mapType :: Type
 mapType = Box (Nat -->  Nat) --> Sig Nat --> Sig Nat
@@ -48,13 +34,16 @@ mapTermBad =
 -- zip
 --
 zipTerm :: Term
-zipTerm = 
+zipTerm =
   Fix "r" $ lam "s1" $ lam "s2" $ -- recursion and two signals
+     -- recursion and two signals
+     -- recursion and two signals
+     -- recursion and two signals
     let_ "x"  (Head (var "s1")) $
     let_ "xs" (Tail (var "s1")) $
     let_ "y"  (Head (var "s2")) $
-    let_ "ys" (Tail (var "s2")) $ 
-      Cons 
+    let_ "ys" (Tail (var "s2")) $
+      Cons
         (Pair (var "x") (var "y")) -- (x, y)
         (Delay (ClockUnion (Clock (var "xs")) (Clock (var "ys")))
           (Case (Select (var "xs") (var "ys"))
@@ -210,31 +199,3 @@ badTermBad = error "TODO"
 
 badTermBadType :: Type
 badTermBadType = Empty
-
-
-
--- -- -- Trying it our as programs -- -- -- 
-
--- A nat channel to read from
-natChan :: Chan
-natChan = Push Nat
-
--- Increment function as a term: λx. suc x
-incr :: Term
-incr = Lam "x" (Suc (var "x"))
-
--- The full program:
--- map (box (λx. suc x)) (wait natChan)
-mapProgram :: Term
-mapProgram =
-  Anno
-    (mapTerm
-      @@ Always incr          -- box (λx. suc x) : □(Nat → Nat)
-      @@ Wait natChan)        -- wait_κ           : ⊙Nat
-    mapProgramType            -- expected result type
-
-mapProgramType :: Type
-mapProgramType = Sig Nat
-
-mkSigTerm :: Type
-mkSigTerm = error "TODO"
