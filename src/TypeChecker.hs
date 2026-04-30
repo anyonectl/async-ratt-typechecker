@@ -158,7 +158,7 @@ infer ctx (Tail t) = do
 infer ctx (Cons hd tl) = do
   headTy <- infer ctx hd
   _      <- check ctx tl (EL (Sig headTy))
-  return (Sig headTy) -- need to understand better what return does here
+  Right (Sig headTy)
 
 -- Fix
 infer _ (Fix _ _) = Left $ OtherError "Cannot infer type of fix, annotate with expected type"
@@ -221,7 +221,7 @@ check ctx (Case t x1 t1 x2 t2) ty = do
 -- Delay
 check ctx (Delay cl t) (EL ty) = do
   _ <- check (addTick cl ctx) t ty
-  return (EL ty) -- need to understand better what return does here
+  Right (EL ty)
 check _ (Delay _cl _t) _ty = Left $ ExpectedEL { term = Delay _cl _t, got = _ty }
 
 
@@ -237,7 +237,7 @@ check ctx (Fix x t) ty = do
 check ctx (Cons hd tl) (Sig ty) = do
   _ <- check ctx hd ty
   _ <- check ctx tl (EL (Sig ty))
-  return (Sig ty) -- need to understand better what return does here
+  Right (Sig ty)
 
 -- Always/box
 check ctx (Always t) (Box ty) = do
