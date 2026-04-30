@@ -2,91 +2,34 @@ module Example where
 
 import Syntax
 
--- In haskell type annotation it would be
--- Box (a -> b) -> Sig a -> Sig b
-mapTypeOld :: Type
-mapTypeOld = Fun (Box (Fun Nat Nat)) (Fun (Sig Nat) (Sig Nat))
-
--- Feedback
--- It is missing the f in the recursive call.
-
 -- map = fix r .λf .λs. let x = head s in let xs = tail s in
 --         unbox f x :: delay_cl(xs) (adv_AL r f (adv xs))
-mapTermOld :: Term
-mapTermOld =
-  Fix "r"
-    (Lam "f"
-      (Lam "s"
-        (Let "x"  (Head (Variable "s"))
-        (Let "xs" (Tail (Variable "s"))
-          (Cons
-            (App (Unbox (Variable "f")) (Variable "x"))
-            (Delay (Clock (Variable "xs"))
-              (App
-                (App (AdvAL (Variable "r")) (Variable "f"))
-                (Adv (Variable "xs")))))))))
-
-
--- -- -- shorthand start -- -- -- 
--- TODO: Should we expand this?
--- TODO: Shorthand should be moved to Syntax.hs if we decide to use it
-
--- Function shorthand
-(-->) :: Type -> Type -> Type
-(-->) = Fun 
-infixr 1 --> -- number is precidence over other operators, and r/l after infix makes it non-chainable
-
--- Variable shorthand
-var :: Var -> Term
-var = Variable
-
--- Application as operator (left-associative, like function application)
-(@@) :: Term -> Term -> Term
-(@@) = App
-infixl 9 @@
-
--- Lambda shorthand
-lam :: Var -> Term -> Term
-lam = Lam
-
--- Let shorthand  
-(.:) :: (Var, Term) -> Term -> Term
-(.:) (x, t1) t2 = Let x t1 t2
-infixr 1 .:
-
--- Anno shorthand
-(:.:) :: Term -> Type -> Term
-(:.:) t ty = Anno t ty
-infixl 9 :.:
-
-(.-.) :: Term -> Term -> Term -> Term 
-(.-.) h t = Cons h t
-infixl 9 .-.
-
--- -- -- shorthand stop -- -- -- 
-
--- map
---
-let map = mapTerm :.: mapType in
-  let mkSig chan = mkSigTerm :.: mkSigType in
-    map Box(Lam (Variable x) ("x" + 1)) mkSig natChan
-
-mkSigType :: Type
-mkSigType = 
-
-mapType :: Type
-mapType = Box (Nat --> Nat) --> Sig Nat --> Sig Nat
-
--- map = fix r .λf .λs. let x = head s in let xs = tail s in
---       unbox f x :: delay_cl(xs) (adv_AL r f (adv xs))
 mapTerm :: Term
 mapTerm =
-  Fix "r" $ lam "f" $ lam "s" $
-    ("x",  Head (var "s")) .: -- let x = head s in
-    ("xs", Tail (var "s")) .: -- let xs = tail s in
-        (Unbox (var "f") @@ var "x") -- unbox f x
-        .-. (Delay (Clock (var "xs")) -- delay_cl(xs)
-          (AdvAL (var "r") @@ var "f" @@ Adv (var "xs"))) -- (adv_AL r (adv xs)
+  Fix "r" -- r: recurse on map
+    (Lam "f" -- f: function argument for map
+      (Lam "s" -- s: the signal
+        (Let "x"  (Head (Variable "s")) -- x: head of s
+          (Let "xs" (Tail (Variable "s")) -- xs: tail of s
+            (Cons -- construct a new signal
+              (App -- apply f (which is stable) to the head
+                (Unbox (Variable "f"))
+                (Variable "x"))
+              (Delay -- cast the tail of s to be EL
+                (Clock (Variable "xs"))
+                (App -- recurse with 
+                  (App (AdvAL (Variable "r")) (Variable "f"))
+                  (Adv (Variable "xs"))
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+
+mapType :: Type
+mapType = Box (Nat -->  Nat) --> Sig Nat --> Sig Nat
 
 -- map bad does not take a stable function
 mapTermBadType :: Type
@@ -95,12 +38,12 @@ mapTermBadType = (Nat --> Nat) --> Sig Nat --> Sig Nat
 mapTermBad :: Term
 mapTermBad =
   Fix "r" $ lam "f" $ lam "s" $
-    ("x",  Head (var "s")) .:
-    ("xs", Tail (var "s")) .:
+    let_ "x"  (Head (var "s")) $
+    let_ "xs" (Tail (var "s")) $
       Cons
-        (var "f" @@ var "x") -- f applied directly, not unboxed
+        (var "f" @@ var "x") -- f is not unboxed
         (Delay (Clock (var "xs"))
-          (AdvAL (var "r") @@ var "f" @@ Adv (var "xs"))) -- f crosses tick here!
+          (AdvAL (var "r") @@ var "f" @@ Adv (var "xs")))
 
 -- zip
 --
@@ -243,3 +186,31 @@ badTermBad = error "TODO"
 
 badTermBadType :: Type
 badTermBadType = Empty
+
+
+
+-- -- -- Trying it our as programs -- -- -- 
+
+-- A nat channel to read from
+natChan :: Chan
+natChan = Push Nat
+
+-- Increment function as a term: λx. suc x
+incr :: Term
+incr = Lam "x" (Suc (var "x"))
+
+-- The full program:
+-- map (box (λx. suc x)) (wait natChan)
+mapProgram :: Term
+mapProgram =
+  Anno
+    (mapTerm
+      @@ Always incr          -- box (λx. suc x) : □(Nat → Nat)
+      @@ Wait natChan)        -- wait_κ           : ⊙Nat
+    mapProgramType            -- expected result type
+
+mapProgramType :: Type
+mapProgramType = Sig Nat
+
+mkSigTerm :: Type
+mkSigTerm = error "TODO"
