@@ -36,9 +36,6 @@ mapTermBad =
 zipTerm :: Term
 zipTerm =
   Fix "r" $ lam "s1" $ lam "s2" $ -- recursion and two signals
-     -- recursion and two signals
-     -- recursion and two signals
-     -- recursion and two signals
     let_ "x"  (Head (var "s1")) $
     let_ "xs" (Tail (var "s1")) $
     let_ "y"  (Head (var "s2")) $
