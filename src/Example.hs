@@ -48,13 +48,37 @@ mapTermBad =
 -- zip
 --
 zipTerm :: Term
-zipTerm = error "TODO"
+zipTerm = 
+  Fix "r" $ lam "s1" $ lam "s2" $ -- recursion and two signals
+    let_ "x"  (Head (var "s1")) $
+    let_ "xs" (Tail (var "s1")) $
+    let_ "y"  (Head (var "s2")) $
+    let_ "ys" (Tail (var "s2")) $ 
+      Cons 
+        (Pair (var "x") (var "y")) -- (x, y)
+        (Delay (ClockUnion (Clock (var "xs")) (Clock (var "ys")))
+          (Case (Select (var "xs") (var "ys"))
+          "leftright" -- (xs × EL ys) + (EL xs × ys)
+          (Case (var "leftright")
+            "left" -- (xs × EL ys) -> zip xs' (ys :: ys')
+            (AdvAL (var "r")
+              @@ Proj Fst (var "left") -- xs'
+              @@ Cons (var "y") (Proj Snd (var "left"))) -- y :: ys'
+            "right" -- (EL xs × ys) -> zip (x :: xs') ys'
+            (AdvAL (var "r")
+              @@ Cons (var "x") (Proj Fst (var "right")) -- x :: xs'
+              @@ Proj Snd (var "right"))) -- ys'
+          "both" -- (xs × ys)
+          (AdvAL (var "r")
+            @@ Proj Fst (var "both"))  -- xs'
+            @@ Proj Snd (var "both"))) -- ys'
 
 zipTermType :: Type
-zipTermType = error "TODO"
+zipTermType = Sig Nat --> Sig Nat --> Sig (Prod (Sig Nat) (Sig Nat))
+-- zipTermType = Sig Nat --> Sig Nat --> Sig (Sig Nat xx Sig Nat)
 
 zipTermBad :: Term
-zipTermBad = error "TODO"
+zipTermBad = error "TODO" -- not sure what zip bad should be, maybe something with stability of A, B? But we only have Nat.. Maybe try it with (Fun A B) where it might be nested unstable vars or
 
 zipTermBadType :: Type
 zipTermBadType = error "TODO"

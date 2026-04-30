@@ -131,7 +131,11 @@ infixl 9 @@
 lam :: Var -> Term -> Term
 lam = Lam
 
--- In Syntax.hs
 let_ :: Var -> Term -> Term -> Term
 let_ x t1 t2 = Let x t1 t2
+
+-- xxx :: Type -> Type -> Type  
+-- xxx = Prod
+-- infixl 9 xxx
+
 -- -- -- shorthand stop -- -- -- 
