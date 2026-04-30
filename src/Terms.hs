@@ -63,6 +63,9 @@ switch = Anno switchTerm switchType
 switchType :: Type
 switchType = Fun (Sig Nat) (Fun (EL (Sig Nat)) (Sig Nat))
 
+switchType' :: Type
+switchType' = Sig Nat --> EL (Sig Nat) --> Sig Nat
+
 switchTerm :: Term
 switchTerm =
   Fix "recurse"
