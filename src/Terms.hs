@@ -57,6 +57,9 @@ tailTermBadType = error "TODO"
 
 -- switch
 --
+switch :: Term
+switch = Anno switchTerm switchType
+
 switchType :: Type
 switchType = Fun (Sig Nat) (Fun (EL (Sig Nat)) (Sig Nat))
 
@@ -106,14 +109,52 @@ switchTerm =
       )
     )
 
-switchAnnotated :: Term
-switchAnnotated = Anno switchTerm switchType
+-- swapped the clocks of xs and ys in ClockUnion
+switchBad :: Term
+switchBad =
+  Fix "recurse"
+    (Lam "s" -- original signal (first argument)
+      (Lam "ys" -- delayed signal (second argument)
+        (Let "x" -- head of original signal s
+          (Head (Variable "s"))
+          (Let "xs" -- tail of original signal s
+            (Tail (Variable "s"))
+            (Cons
+              (Variable "x")
+              (Delay
+                (ClockUnion
+                  (Clock (Variable "ys"))   -- should be xs
+                  (Clock (Variable "xs")))  -- should be ys
+                (Case
+                  (Select (Variable "xs") (Variable "ys"))
+                  
+                  -- outer left: ((Sig A × EL (Sig A)) + (EL (Sig A) × Sig A))
+                  "oneTicked"
+                  (Case
+                    (Variable "oneTicked")
 
-switchTermBad :: Term
-switchTermBad = error "TODO"
+                    -- xs ticked first (inner left)
+                    "left"
+                    (App
+                      (App
+                        (AdvAL (Variable "recurse"))
+                        (Proj Fst (Variable "left")))
+                      (Proj Snd (Variable "left")))
+                    
+                    -- ys ticked first (inner right) - switch!
+                    "right"
+                    (Proj Snd (Variable "right")))
 
-switchBadType :: Type
-switchTermBadType = error "TODO"
+                  -- both ticked (outer right) - also switch
+                  "bothTicked"
+                  (Proj Snd (Variable "bothTicked"))
+                )
+              )  
+            )
+          )
+        )
+      )
+    )
 
 -- bad bad = fix r . advAL r
 -- 
