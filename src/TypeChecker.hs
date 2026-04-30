@@ -119,10 +119,10 @@ infer _ (Wait k) =
     else Left $  ExpectedPushChannel (Wait k)
 
 -- Read 
-infer _ (Read k) = case k of
-  Buf a     -> Right a
-  PushBuf a -> Right a
-  _         -> Left $ ExpectedBufferChannel (Read k)
+infer _ (Read k) =
+  if isBuf k && k `elem` inputChans
+    then Right (chanType k)
+    else Left $ ExpectedBufferChannel (Read k)
 
 -- Head
 infer ctx (Head t) = do
