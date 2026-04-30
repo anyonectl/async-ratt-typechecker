@@ -7,8 +7,11 @@ import Syntax
 mapTypeOld :: Type
 mapTypeOld = Fun (Box (Fun Nat Nat)) (Fun (Sig Nat) (Sig Nat))
 
--- map = fix r . λ f . λ s. let x = head s in let xs = tail s in
---         unbox f x :: delay_cl(xs) (adv_AL r (adv xs))
+-- Feedback
+-- It is missing the f in the recursive call.
+
+-- map = fix r .λf .λs. let x = head s in let xs = tail s in
+--         unbox f x :: delay_cl(xs) (adv_AL r f (adv xs))
 mapTermOld :: Term
 mapTermOld =
   Fix "r"
@@ -51,23 +54,38 @@ lam = Lam
 (.:) (x, t1) t2 = Let x t1 t2
 infixr 1 .:
 
+-- Anno shorthand
+(:.:) :: Term -> Type -> Term
+(:.:) t ty = Anno t ty
+infixl 9 :.:
+
+(.-.) :: Term -> Term -> Term -> Term 
+(.-.) h t = Cons h t
+infixl 9 .-.
+
 -- -- -- shorthand stop -- -- -- 
 
 -- map
 --
+let map = mapTerm :.: mapType in
+  let mkSig chan = mkSigTerm :.: mkSigType in
+    map Box(Lam (Variable x) ("x" + 1)) mkSig natChan
+
+mkSigType :: Type
+mkSigType = 
+
 mapType :: Type
 mapType = Box (Nat --> Nat) --> Sig Nat --> Sig Nat
 
--- map = fix r . λ f . λ s. let x = head s in let xs = tail s in
---       unbox f x :: delay_cl(xs) (adv_AL r (adv xs))
+-- map = fix r .λf .λs. let x = head s in let xs = tail s in
+--       unbox f x :: delay_cl(xs) (adv_AL r f (adv xs))
 mapTerm :: Term
 mapTerm =
   Fix "r" $ lam "f" $ lam "s" $
     ("x",  Head (var "s")) .: -- let x = head s in
     ("xs", Tail (var "s")) .: -- let xs = tail s in
-      Cons
         (Unbox (var "f") @@ var "x") -- unbox f x
-        (Delay (Clock (var "xs")) -- delay_cl(xs)
+        .-. (Delay (Clock (var "xs")) -- delay_cl(xs)
           (AdvAL (var "r") @@ var "f" @@ Adv (var "xs"))) -- (adv_AL r (adv xs)
 
 -- map bad does not take a stable function
