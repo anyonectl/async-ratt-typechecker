@@ -22,7 +22,7 @@ chanType (Buf ty)      = ty
 chanType (PushBuf ty)  = ty
 chanType (Push ty)     = ty
 
--- Input channel context (delta) with example channels
+-- Input channel context (Delta) with hardcoded example channels
 inputChans :: [Chan]
 inputChans = [Push Nat, Buf Nat, PushBuf Nat]
 
