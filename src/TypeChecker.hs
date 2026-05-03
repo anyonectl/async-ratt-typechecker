@@ -148,7 +148,9 @@ infer ctx (Cons hd tl) = do
 infer _ (Fix _ _) = Left $ OtherError "Cannot infer type of fix, annotate with expected type"
 
 -- Switch from infer mode to check mode (when do we need this?)
-infer ctx (Anno t ty) = check ctx t ty
+infer ctx (Anno t ty) = do
+  _ <- check ctx t ty
+  return ty
 
 -- Default
 infer _ t = Left $ OtherError ("No infer rule for term: " ++ show t)
@@ -220,6 +222,11 @@ check ctx (Cons hd tl) (Sig ty) = do
   _ <- check ctx hd ty
   _ <- check ctx tl (EL (Sig ty))
   return (Sig ty) -- need to understand better what return does here
+
+-- Always/box
+check ctx (Always t) (Box ty) = do
+  _ <- check (stableCtx ctx) t ty
+  return (Box ty)
 
 -- Default
 check ctx t ty =
