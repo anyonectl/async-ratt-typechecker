@@ -148,7 +148,9 @@ infer ctx (Cons hd tl) = do
 infer _ (Fix _ _) = Left $ OtherError "Cannot infer type of fix, annotate with expected type"
 
 -- Switch from infer mode to check mode (when do we need this?)
-infer ctx (Anno t ty) = check ctx t ty
+infer ctx (Anno t ty) = do
+  _ <- check ctx t ty
+  return ty
 
 -- Default
 infer _ t = Left $ OtherError ("No infer rule for term: " ++ show t)
