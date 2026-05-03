@@ -223,6 +223,11 @@ check ctx (Cons hd tl) (Sig ty) = do
   _ <- check ctx tl (EL (Sig ty))
   return (Sig ty) -- need to understand better what return does here
 
+-- Always/box
+check ctx (Always t) (Box ty) = do
+  _ <- check (stableCtx ctx) t ty
+  return (Box ty)
+
 -- Default
 check ctx t ty =
   case infer ctx t of
