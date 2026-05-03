@@ -63,9 +63,6 @@ switchType = Fun (Sig Nat) (Fun (EL (Sig Nat)) (Sig Nat))
 switchType' :: Type
 switchType' = Sig Nat --> EL (Sig Nat) --> Sig Nat
 
-switch :: Term
-switch = Anno switchTerm switchType
-
 -- Are we lacking some type of boxing? Since the body of Fix must be typed in the stable context
 -- Or if we're typing switchTerm in the empty context, then that context is already stable by definition...
 switchTerm :: Term
@@ -115,13 +112,10 @@ switchTerm =
       )
     )
 
-switchBad :: Term
-switchBad = Anno switchTermBad switchType
-
 -- swapped the clocks of xs and ys in ClockUnion
 -- this should fail in preTickOnSpecificClock during infer on Select (with error 'NoTickInContext')
 -- because ClockUnion (Clock ys) (Clock xs) == ClockUnion (Clock xs) (Clock ys) = false (they are not structurally equal)
-switchTermBad :: Term
+switchBad :: Term
 switchTermBad =
   Fix "recurse"
     (Lam "s" -- original signal (first argument)
