@@ -1,42 +1,70 @@
-module Terms where
+module Example where
 
 import Syntax
 
--- map = fix r. λf. λs. let x = head s in let xs = tail s in
---         unbox f x :: delay_cl(xs) (adv_AL r (adv xs))
+-- map = fix r .λf .λs. let x = head s in let xs = tail s in
+--         unbox f x :: delay_cl(xs) (adv_AL r f (adv xs))
 mapTerm :: Term
 mapTerm =
-  Fix "r"
-    (Lam "f"
-      (Lam "s"
-        (Let "x"  (Head (Variable "s"))
-        (Let "xs" (Tail (Variable "s"))
-          (Cons
-            (App (Unbox (Variable "f")) (Variable "x"))
-            (Delay (Clock (Variable "xs"))
-              (App
-                (App (AdvAL (Variable "r")) (Variable "f"))
-                (Adv (Variable "xs")))))))))
+  Fix "r" $ lam "f" $ lam "s" $
+        let_ "x"  (Head (var "s")) $ -- x: head of s
+          let_ "xs" (Tail (var "s")) $ -- xs: tail of s
+            Cons -- construct a new signal
+              (Unbox (var "f") @@ var "x")
+              (Delay (Clock (var "xs"))
+                (AdvAL (var "r") @@ var "f" @@ Adv (var "xs"))) -- map f xs' 
 
 mapType :: Type
-mapType = Fun (Box (Fun Nat Nat)) (Fun (Sig Nat) (Sig Nat))
+mapType = Box (Nat -->  Nat) --> Sig Nat --> Sig Nat
+
+-- map bad does not take a stable function
+mapTermBadType :: Type
+mapTermBadType = (Nat --> Nat) --> Sig Nat --> Sig Nat
 
 mapTermBad :: Term
-mapTermBad = error "TODO"
-
-mapTermBadType :: Type
-mapTermBadType = error "TODO"
+mapTermBad =
+  Fix "r" $ lam "f" $ lam "s" $
+    let_ "x"  (Head (var "s")) $
+    let_ "xs" (Tail (var "s")) $
+      Cons
+        (var "f" @@ var "x") -- f is not unboxed
+        (Delay (Clock (var "xs"))
+          (AdvAL (var "r") @@ var "f" @@ Adv (var "xs")))
 
 -- zip
 --
 zipTerm :: Term
-zipTerm = error "TODO"
+zipTerm =
+  Fix "r" $ lam "s1" $ lam "s2" $ -- recursion and two signals
+    let_ "x"  (Head (var "s1")) $
+    let_ "xs" (Tail (var "s1")) $
+    let_ "y"  (Head (var "s2")) $
+    let_ "ys" (Tail (var "s2")) $
+      Cons
+        (Pair (var "x") (var "y")) -- (x, y)
+        (Delay (ClockUnion (Clock (var "xs")) (Clock (var "ys")))
+          (Case (Select (var "xs") (var "ys"))
+          "leftright" -- (xs × EL ys) + (EL xs × ys)
+          (Case (var "leftright")
+            "left" -- (xs × EL ys) -> zip xs' (ys :: ys')
+            (AdvAL (var "r")
+              @@ Proj Fst (var "left") -- xs'
+              @@ Cons (var "y") (Proj Snd (var "left"))) -- y :: ys'
+            "right" -- (EL xs × ys) -> zip (x :: xs') ys'
+            (AdvAL (var "r")
+              @@ Cons (var "x") (Proj Fst (var "right")) -- x :: xs'
+              @@ Proj Snd (var "right"))) -- ys'
+          "both" -- (xs × ys)
+          (AdvAL (var "r")
+            @@ Proj Fst (var "both"))  -- xs'
+            @@ Proj Snd (var "both"))) -- ys'
 
 zipTermType :: Type
-zipTermType = error "TODO"
+zipTermType = Sig Nat --> Sig Nat --> Sig (Prod (Sig Nat) (Sig Nat))
+-- zipTermType = Sig Nat --> Sig Nat --> Sig (Sig Nat xx Sig Nat)
 
 zipTermBad :: Term
-zipTermBad = error "TODO"
+zipTermBad = error "TODO" -- not sure what zip bad should be, maybe something with stability of A, B? But we only have Nat.. Maybe try it with (Fun A B) where it might be nested unstable vars or
 
 zipTermBadType :: Type
 zipTermBadType = error "TODO"
@@ -166,5 +194,5 @@ switchTermBad =
 badTermBad :: Term
 badTermBad = error "TODO"
 
-badTermBadType :: Empty
-badTermBadType = error "TODO"
+badTermBadType :: Type
+badTermBadType = Empty

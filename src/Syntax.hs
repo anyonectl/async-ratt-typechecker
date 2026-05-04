@@ -113,3 +113,25 @@ isValue (Lam _ _)    = True
 isValue (Always _)   = True
 isValue (Wait _)     = True
 isValue _            = False
+
+
+
+-- -- -- shorthand start -- -- -- 
+(-->) :: Type -> Type -> Type
+(-->) = Fun
+infixr 1 -->
+
+var :: Var -> Term
+var = Variable
+
+(@@) :: Term -> Term -> Term
+(@@) = App
+infixl 9 @@
+
+lam :: Var -> Term -> Term
+lam = Lam
+
+let_ :: Var -> Term -> Term -> Term
+let_ x t1 t2 = Let x t1 t2
+
+-- -- -- shorthand stop -- -- -- 
