@@ -24,23 +24,23 @@ data TypeError
   deriving (Eq)
 
 instance Show TypeError where
-    show $ TypeMismatch t e g = 
+    show (TypeMismatch t e g) = 
         "Type mismatch in term " ++ show t ++ 
         ": expected type " ++ show e ++ 
         ", but got type " ++ show g
-    show $ ExpectedAL t g = 
+    show (ExpectedAL t g) = 
         "Term " ++ show t ++
         ": expected type AL _" ++ 
         ", but got type " ++ show g 
-    show $ ExpectedEL t g = 
+    show (ExpectedEL t g) = 
         "Term " ++ show t ++
         ": expected type EL _" ++ 
         ", but got type " ++ show g
-    show $ ExpectedSig t g =
+    show (ExpectedSig t g) =
         "Term " ++ show t ++
         ": expected type Sig a" ++
         ", but got type " ++ show g
-    show $ ExpectedValue t = 
+    show (ExpectedValue t) = 
         "Term " ++ show t ++
         ": expected value"
     show (ExpectedBufferChannel t) = 
