@@ -68,36 +68,42 @@ infer ctx (Case t x1 t1 x2 t2) = do
     _ -> Left (OtherError "Case expected sum type as argument")
 
 -- Adv
-infer ctx (Adv (Variable x)) = do
-  let cl = Clock (Variable x)
-  ctxBeforeTick <- first CtxError $ preTickOnSpecificClock ctx cl
-  tyBeforeTick <- first CtxError $ lookupType x ctxBeforeTick
-  case tyBeforeTick of
-    EL a -> Right a
-    _    -> Left $ ExpectedEL {term = Adv (Variable x), got = tyBeforeTick}
-infer _ctx (Adv _x) = Left $ OtherError ("(Adv x) expected variable as argument, but got: " ++ show _x)
-
+infer ctx (Adv v) =
+  if not $ isValue v 
+    then Left $ ExpectedValue (Adv v)
+    else do 
+      let cl = Clock v
+      ctxBeforeTick <- first CtxError $ preTickOnSpecificClock ctx cl
+      tyBeforeTick <- infer ctxBeforeTick v
+      case tyBeforeTick of
+        EL a -> Right a
+        _    -> Left $ ExpectedEL {term = Adv v, got = tyBeforeTick}
+  
 -- AdvAL 
-infer ctx (AdvAL (Variable x)) = do -- check that v is a value (needs to be a variable)
-  ctxBeforeTick <- first CtxError $ preTick ctx
-  ty <- infer ctxBeforeTick (Variable x)
-  case ty of
-    AL a -> Right a
-    _    -> Left $ ExpectedAL { term = AdvAL (Variable x), got = ty}
-infer _ctx (AdvAL _x) = Left $ OtherError ("(AdvAL x) expected variable as argument, but got: " ++ show _x)
+infer ctx (AdvAL v) =
+  if not $ isValue v 
+    then Left $ ExpectedValue (AdvAL v) 
+    else do 
+      ctxBeforeTick <- first CtxError $ preTick ctx
+      ty <- infer ctxBeforeTick v
+      case ty of
+        AL a -> Right a
+        _    -> Left $ ExpectedAL { term = AdvAL (Variable x), got = ty}
 
 -- Select
-infer ctx (Select (Variable x1) (Variable x2)) = do
-  let clockUnion = ClockUnion (Clock (Variable x1)) (Clock (Variable x2))
-  ctxBeforeTick <- first CtxError $ preTickOnSpecificClock ctx clockUnion
-  ty1 <- infer ctxBeforeTick (Variable x1)
-  ty2 <- infer ctxBeforeTick (Variable x2)
-  case (ty1, ty2) of
-    (EL a1, EL a2) -> Right (Sum (Sum (Prod a1 (EL a2))
-                                      (Prod (EL a1) a2))
-                            (Prod a1 a2))
-    _              -> Left $ OtherError "Select: expected two delayed computations EL A1 and EL A2"
-infer _ctx (Select _x1 _x2) = Left $ OtherError ("(Select x1 x2) expected variable as argument, but got: " ++ show _x1 ++ " and " ++ show _x2)
+infer ctx (Select v1 v2) =
+  if not (isValue v1) && not (isValue v2) 
+    then Left $ ExpectedValue (Select v1 v2)
+    else do 
+      let clockUnion = ClockUnion (Clock v1) (Clock v2)
+      ctxBeforeTick <- first CtxError $ preTickOnSpecificClock ctx clockUnion
+      ty1 <- infer ctxBeforeTick v1
+      ty2 <- infer ctxBeforeTick v2
+      case (ty1, ty2) of
+        (EL a1, EL a2) -> Right (Sum (Sum (Prod a1 (EL a2))
+                                          (Prod (EL a1) a2))
+                                (Prod a1 a2))
+        _              -> Left $ OtherError "Select: expected two delayed computations EL A1 and EL A2"
 
 -- Always
 infer ctx (Always t) = do
@@ -142,7 +148,7 @@ infer ctx (Tail t) = do
 infer ctx (Cons hd tl) = do
   headTy <- infer ctx hd
   _      <- check ctx tl (EL (Sig headTy))
-  return (Sig headTy) -- need to understand better what return does here
+  Right (Sig headTy)
 
 -- Fix
 infer _ (Fix _ _) = Left $ OtherError "Cannot infer type of fix, annotate with expected type"
@@ -205,7 +211,7 @@ check ctx (Case t x1 t1 x2 t2) ty = do
 -- Delay
 check ctx (Delay cl t) (EL ty) = do
   _ <- check (addTick cl ctx) t ty
-  return (EL ty) -- need to understand better what return does here
+  Right (EL ty)
 check _ (Delay _cl _t) _ty = Left $ ExpectedEL { term = Delay _cl _t, got = _ty }
 
 
@@ -221,7 +227,7 @@ check ctx (Fix x t) ty = do
 check ctx (Cons hd tl) (Sig ty) = do
   _ <- check ctx hd ty
   _ <- check ctx tl (EL (Sig ty))
-  return (Sig ty) -- need to understand better what return does here
+  Right (Sig ty)
 
 -- Always/box
 check ctx (Always t) (Box ty) = do

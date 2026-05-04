@@ -1,4 +1,4 @@
-module ExampleSpec where
+module SignalCombinatorsSpec where
 
 import Test.Hspec
 

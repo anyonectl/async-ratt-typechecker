@@ -1,4 +1,4 @@
-module Example where
+module SignalCombinators where
 
 import Syntax
 
