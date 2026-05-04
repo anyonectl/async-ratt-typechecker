@@ -144,7 +144,7 @@ switchTerm =
 -- this should fail in preTickOnSpecificClock during infer on Select (with error 'NoTickInContext')
 -- because ClockUnion (Clock ys) (Clock xs) == ClockUnion (Clock xs) (Clock ys) = false (they are not structurally equal)
 switchBad :: Term
-switchTermBad =
+switchBad =
   Fix "recurse"
     (Lam "s" -- original signal (first argument)
       (Lam "ys" -- delayed signal (second argument)

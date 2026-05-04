@@ -88,7 +88,7 @@ infer ctx (AdvAL v) =
       ty <- infer ctxBeforeTick v
       case ty of
         AL a -> Right a
-        _    -> Left $ ExpectedAL { term = AdvAL (Variable x), got = ty}
+        _    -> Left $ ExpectedAL { term = AdvAL v, got = ty}
 
 -- Select
 infer ctx (Select v1 v2) =
