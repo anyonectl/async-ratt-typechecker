@@ -168,71 +168,66 @@ infer _ t = Left $ OtherError ("No infer rule for term: " ++ show t)
 check :: Ctx -> Term -> Type -> Either TypeError Type
 
 -- Pair
-check ctx (Pair t1 t2) ty =
-  case ty of
-    Prod a b -> do
-      _ <- check ctx t1 a
-      _ <- check ctx t2 b
-      Right ty
-    _       -> Left (OtherError "Pair expected a product type")
+check ctx (Pair t1 t2) (Prod ty1 ty2) = do
+  _ <- check ctx t1 ty1
+  _ <- check ctx t2 ty2
+  Right (Prod ty1 ty2)
 
 -- Injection
-check ctx (Inj rl t) ty =
-  case ty of
-    Sum a b -> case rl of
-      InLeft  -> check ctx t a
-      InRight -> check ctx t b
-    _         -> Left (OtherError "Injection expected sum type")
+check ctx (Inj InLeft t) (Sum ty1 ty2) = do
+  _ <- check ctx t ty1
+  Right (Sum ty1 ty2)
+
+check ctx (Inj InRight t) (Sum ty1 ty2) = do
+  _ <- check ctx t ty2
+  Right (Sum ty1 ty2)
 
 -- Let
-check ctx (Let x t1 t2) ty = do -- this is just like the Sestoft book (yay!)
+check ctx (Let x t1 t2) ty = do
   ty1 <- infer ctx t1
-  let ctx' = addVar x ty1 ctx
-  check ctx' t2 ty
+  _ <- check (addVar x ty1 ctx) t2 ty
+  Right ty
 
 -- Lambda
-check ctx (Lam x t) ty =
-  case ty of
-    Fun a b -> check (addVar x a ctx) t b
-    _       -> Left (OtherError "Lambda expected function type")
+check ctx (Lam x body) (Fun argTy returnTy) = do
+  _ <- check (addVar x argTy ctx) body returnTy
+  Right (Fun argTy returnTy)
 
 -- Case
 check ctx (Case t x1 t1 x2 t2) ty = do
   arg <- infer ctx t
   case arg of
-    Sum a1 a2 -> do               -- check that t is a sum type
-      let ctx1 = addVar x1 a1 ctx
-      let ctx2 = addVar x2 a2 ctx
-      _ <- check ctx1 t1 ty
-      _ <- check ctx2 t2 ty -- the error checking is better when using infer..? 
-      Right ty                    -- then for each extended context branch, check that the type of t1 and t2 are ty
-    _ -> Left (OtherError "Case argument is not a sum type")
+    Sum ty1 ty2 -> do -- check that t is a sum type
+      _ <- check (addVar x1 ty1 ctx) t1 ty
+      _ <- check (addVar x2 ty2 ctx) t2 ty
+      Right ty
+    _ -> Left (OtherError ("Case argument " ++ show t ++ "should have type Sum _ _, but got type " ++ show arg))
 
 -- Delay
 check ctx (Delay cl t) (EL ty) = do
   _ <- check (addTick cl ctx) t ty
   Right (EL ty)
-check _ (Delay _cl _t) _ty = Left $ ExpectedEL { term = Delay _cl _t, got = _ty }
 
-
-check _ Never (EL a) = Right (EL a)
-check _ Never ty      = Left $ ExpectedEL { term = Never, got = ty }
+-- Always/box
+check ctx (Always t) (Box ty) = do
+  _ <- check (stableCtx ctx) t ty
+  Right (Box ty)
 
 -- Fix
 check ctx (Fix x t) ty = do
   let ctx' = addVar x (AL ty) (stableCtx ctx)
-  check ctx' t ty
+  _ <- check ctx' t ty
+  Right ty
+
+-- Never
+check _ Never (EL a) =
+  Right (EL a)
 
 -- Cons
 check ctx (Cons hd tl) (Sig ty) = do
   _ <- check ctx hd ty
   _ <- check ctx tl (EL (Sig ty))
   Right (Sig ty)
-
--- Always/box
-check ctx (Always t) (Box ty) = do
-  _ <- check (stableCtx ctx) t ty
-  return (Box ty)
 
 -- Default
 check ctx t ty =
