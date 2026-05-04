@@ -22,7 +22,7 @@ library
                     , ErrorTypes
                     , TypeChecker
                     , Context
-                    , SignalCombinatorsSpec
+                    , SignalCombinators
                     , Demo
     build-depends:    base >=4.7 && <5,
                       array
