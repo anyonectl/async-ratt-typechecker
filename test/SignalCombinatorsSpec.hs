@@ -4,14 +4,14 @@ import Test.Hspec
 
 import TypeChecker
 import Syntax
-import Example
+import SignalCombinators
 import Context
 import ErrorTypes
 
 spec :: Spec
-spec = describe "Examples" $ do
+spec = describe "SignalCombinators" $ do
 
-  let ctx = (Ctx ([], []))
+  let ctx = Ctx ([], [])
 
   describe "map" $ do
 
