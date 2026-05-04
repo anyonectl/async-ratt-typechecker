@@ -12,9 +12,10 @@ data ContextError
 
 data TypeError
   = TypeMismatch            { term :: Term, expected :: Type, got :: Type }
+  | TypeCheckFailed         { term :: Term, checkedType :: Type , inferedType :: Type }
   | ExpectedAL              { term :: Term, got :: Type }
   | ExpectedEL              { term :: Term, got :: Type }
-  | ExpectedSig             Term
+  | ExpectedSig             { term :: Term, got :: Type }
   | ExpectedValue           Term
   | ExpectedBufferChannel   Term
   | ExpectedPushChannel     Term
@@ -28,6 +29,10 @@ instance Show TypeError where
         "Type mismatch in term " ++ show t ++ 
         ": expected type " ++ show e ++ 
         ", but got type " ++ show g
+    show (TypeCheckFailed t cty ity) =
+        "Check failed on term " ++ show t ++
+        ": checked " ++ show cty ++
+        ", but infered " ++ show ity
     show (ExpectedAL t g) = 
         "Term " ++ show t ++
         ": expected type AL _" ++ 
