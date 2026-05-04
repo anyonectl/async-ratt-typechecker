@@ -1,7 +1,7 @@
 module Demo where
 
 import Syntax
-import Terms
+import SignalCombinators
 import Context
 import ErrorTypes
 import TypeChecker
