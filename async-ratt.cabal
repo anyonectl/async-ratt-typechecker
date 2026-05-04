@@ -22,7 +22,8 @@ library
                     , ErrorTypes
                     , TypeChecker
                     , Context
-                    , Example
+                    , SignalCombinatorsSpec
+                    , Demo
     build-depends:    base >=4.7 && <5,
                       array
     hs-source-dirs:   src
@@ -44,7 +45,7 @@ test-suite tc-test
     main-is:          Spec.hs
     other-modules:    TypeCheckerSpec
                     , ContextSpec
-                    , ExampleSpec
+                    , SignalCombinatorsSpec
     build-depends:    base >=4.7 && <5,
                       hspec,
                       async-ratt

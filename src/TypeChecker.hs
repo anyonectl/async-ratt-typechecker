@@ -68,52 +68,42 @@ infer ctx (Case t x1 t1 x2 t2) = do
     _ -> Left (OtherError "Case expected sum type as argument")
 
 -- Adv
-{- 
-infer on adv:
-it is not enough to cover variables (despite what I said at last meeting)
-also needs to consider wait_kappa
-same goes for select (and for corresponding cases of check ?
-Only use the check for variable or wait_kappa to decide whether argument t is a value or not. Then just
-check/infer type of t as described by typing rule
--}
-infer ctx (Adv (Variable x)) = do
-  let cl = Clock (Variable x)
-  ctxBeforeTick <- first CtxError $ preTickOnSpecificClock ctx cl
-  tyBeforeTick <- first CtxError $ lookupType x ctxBeforeTick
-  case tyBeforeTick of
-    EL a -> Right a
-    _    -> Left $ ExpectedEL {term = Adv (Variable x), got = tyBeforeTick}
-
-infer ctx (Adv (Wait chan)) = do
-  let cl = Clock (Wait chan)
-  ctxBeforeTick <- first CtxError $ preTickOnSpecificClock ctx cl
-  tyBeforeTick  <- infer ctxBeforeTick (Wait chan)
-  case tyBeforeTick of
-    EL a -> Right a
-    _    -> Left $ ExpectedEL { term = Adv (Wait chan), got = tyBeforeTick }
+infer ctx (Adv v) =
+  if not $ isValue v 
+    then Left $ ExpectedValue (Adv v)
+    else do 
+      let cl = Clock v
+      ctxBeforeTick <- first CtxError $ preTickOnSpecificClock ctx cl
+      tyBeforeTick <- infer ctxBeforeTick v
+      case tyBeforeTick of
+        EL a -> Right a
+        _    -> Left $ ExpectedEL {term = Adv v, got = tyBeforeTick}
   
-infer _ctx (Adv v) = Left $ OtherError ("(Adv v) expected variable or wait_κ as argument, but got: " ++ show v)
 -- AdvAL 
-infer ctx (AdvAL (Variable x)) = do -- check that v is a value (needs to be a variable)
-  ctxBeforeTick <- first CtxError $ preTick ctx
-  ty <- infer ctxBeforeTick (Variable x)
-  case ty of
-    AL a -> Right a
-    _    -> Left $ ExpectedAL { term = AdvAL (Variable x), got = ty}
-infer _ctx (AdvAL _x) = Left $ OtherError ("(AdvAL x) expected variable as argument, but got: " ++ show _x)
+infer ctx (AdvAL v) =
+  if not $ isValue v 
+    then Left $ ExpectedValue (AdvAL v) 
+    else do 
+      ctxBeforeTick <- first CtxError $ preTick ctx
+      ty <- infer ctxBeforeTick v
+      case ty of
+        AL a -> Right a
+        _    -> Left $ ExpectedAL { term = AdvAL (Variable x), got = ty}
 
 -- Select
-infer ctx (Select (Variable x1) (Variable x2)) = do
-  let clockUnion = ClockUnion (Clock (Variable x1)) (Clock (Variable x2))
-  ctxBeforeTick <- first CtxError $ preTickOnSpecificClock ctx clockUnion
-  ty1 <- infer ctxBeforeTick (Variable x1)
-  ty2 <- infer ctxBeforeTick (Variable x2)
-  case (ty1, ty2) of
-    (EL a1, EL a2) -> Right (Sum (Sum (Prod a1 (EL a2))
-                                      (Prod (EL a1) a2))
-                            (Prod a1 a2))
-    _              -> Left $ OtherError "Select: expected two delayed computations EL A1 and EL A2"
-infer _ctx (Select _x1 _x2) = Left $ OtherError ("(Select x1 x2) expected variable as argument, but got: " ++ show _x1 ++ " and " ++ show _x2)
+infer ctx (Select v1 v2) =
+  if not (isValue v1) && not (isValue v2) 
+    then Left $ ExpectedValue (Select v1 v2)
+    else do 
+      let clockUnion = ClockUnion (Clock v1) (Clock v2)
+      ctxBeforeTick <- first CtxError $ preTickOnSpecificClock ctx clockUnion
+      ty1 <- infer ctxBeforeTick v1
+      ty2 <- infer ctxBeforeTick v2
+      case (ty1, ty2) of
+        (EL a1, EL a2) -> Right (Sum (Sum (Prod a1 (EL a2))
+                                          (Prod (EL a1) a2))
+                                (Prod a1 a2))
+        _              -> Left $ OtherError "Select: expected two delayed computations EL A1 and EL A2"
 
 -- Always
 infer ctx (Always t) = do
