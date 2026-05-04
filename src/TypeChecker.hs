@@ -140,13 +140,13 @@ infer ctx (Head t) = do
   ty <- infer ctx t
   case ty of
     Sig a -> Right a
-    _     -> Left $ ExpectedSig (Head t)
+    _     -> Left $ ExpectedSig { term = Head t, got = ty }
 
 infer ctx (Tail t) = do
   ty <- infer ctx t
   case ty of
     Sig a -> Right (EL (Sig a))
-    _     -> Left $ ExpectedSig (Tail t)
+    _     -> Left $ ExpectedSig { term = Tail t, got = ty }
 
 infer ctx (Cons hd tl) = do
   headTy <- infer ctx hd
