@@ -57,17 +57,109 @@ tailTermBadType = error "TODO"
 
 -- switch
 --
+switchType :: Type
+switchType = Fun (Sig Nat) (Fun (EL (Sig Nat)) (Sig Nat))
+
+switchType' :: Type
+switchType' = Sig Nat --> EL (Sig Nat) --> Sig Nat
+
+-- Are we lacking some type of boxing? Since the body of Fix must be typed in the stable context
+-- Or if we're typing switchTerm in the empty context, then that context is already stable by definition...
 switchTerm :: Term
-switchTerm = error "TODO"
+switchTerm =
+  Fix "recurse" -- type of "recurse" is `AL (Sig Nat -> (EL (Sig Nat) -> Sig Nat))`
+    (Lam "s" -- original signal (first argument)
+      (Lam "ys" -- delayed signal (second argument) (type: EL (Sig Nat))
+        (Let "x" -- head of original signal s, `Nat`
+          (Head (Variable "s"))
+          (Let "xs" -- tail of original signal s (type: EL (Sig Nat))
+            (Tail (Variable "s"))
+            (Cons
+              (Variable "x")
+              (Delay -- result of delay is `EL (Sig Nat)` (on union clock), so `"x" : result of delay` has type Sig Nat (what switch returns)
+                (ClockUnion
+                  (Clock (Variable "xs"))
+                  (Clock (Variable "ys")))
+                (Case -- result of this Case has type `Sig Nat`
+                  (Select (Variable "xs") (Variable "ys")) -- result has 3-way sum type: ((Sig Nat × EL (Sig Nat)) + (EL (Sig Nat) × Sig Nat)) + (Sig Nat × Sig Nat)
+                  
+                  -- outer left
+                  -- (clock of xs ticked) + (clock of ys ticked)
+                  "oneTicked" -- type: -- ((Sig Nat × EL (Sig Nat)) + (EL (Sig Nat) × Sig Nat))
+                  (Case 
+                    (Variable "oneTicked")
 
-switchTermType :: Type
-switchTermType = error "TODO"
+                    -- xs ticked first (inner left)
+                    "left" -- type: Sig Nat × EL (Sig Nat)
+                    (App
+                      (App
+                        (AdvAL (Variable "recurse")) -- type: Sig Nat -> (EL (Sig Nat) -> Sig Nat)) (advAL 'removes' AL)
+                        (Proj Fst (Variable "left"))) -- xs, type: Sig Nat. We pass this to the function above and get type `EL (Sig Nat) -> Sig Nat`
+                      (Proj Snd (Variable "left"))) -- ys, type: EL (Sig Nat). Pass this to the function above. The new argument s' is the previous s WITHOUT the head x, but ys is the same
+                    
+                    -- ys ticked first (inner right) - switch! (no recursion, just return ys)
+                    "right" -- type: -- EL (Sig Nat) × Sig Nat
+                    (Proj Snd (Variable "right"))) -- type: Sig Nat 
 
-switchTermBad :: Term
-switchTermBad = error "TODO"
+                  -- both ticked (outer right) - switch!
+                  "bothTicked" -- type: Sig Nat × Sig Nat
+                  (Proj Snd (Variable "bothTicked")) -- we choose Snd to switch to ys
+                )
+              )  
+            )
+          )
+        )
+      )
+    )
 
-switchTermBadType :: Type
-switchTermBadType = error "TODO"
+-- swapped the clocks of xs and ys in ClockUnion
+-- this should fail in preTickOnSpecificClock during infer on Select (with error 'NoTickInContext')
+-- because ClockUnion (Clock ys) (Clock xs) == ClockUnion (Clock xs) (Clock ys) = false (they are not structurally equal)
+switchBad :: Term
+switchTermBad =
+  Fix "recurse"
+    (Lam "s" -- original signal (first argument)
+      (Lam "ys" -- delayed signal (second argument)
+        (Let "x" -- head of original signal s
+          (Head (Variable "s"))
+          (Let "xs" -- tail of original signal s
+            (Tail (Variable "s"))
+            (Cons
+              (Variable "x")
+              (Delay
+                (ClockUnion
+                  (Clock (Variable "ys"))   -- should be xs
+                  (Clock (Variable "xs")))  -- should be ys
+                (Case
+                  (Select (Variable "xs") (Variable "ys"))
+                  
+                  -- outer left: ((Sig A × EL (Sig A)) + (EL (Sig A) × Sig A))
+                  "oneTicked"
+                  (Case
+                    (Variable "oneTicked")
+
+                    -- xs ticked first (inner left)
+                    "left"
+                    (App
+                      (App
+                        (AdvAL (Variable "recurse"))
+                        (Proj Fst (Variable "left")))
+                      (Proj Snd (Variable "left")))
+                    
+                    -- ys ticked first (inner right) - switch!
+                    "right"
+                    (Proj Snd (Variable "right")))
+
+                  -- both ticked (outer right) - also switch
+                  "bothTicked"
+                  (Proj Snd (Variable "bothTicked"))
+                )
+              )  
+            )
+          )
+        )
+      )
+    )
 
 -- bad bad = fix r . advAL r
 -- 
