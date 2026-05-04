@@ -89,7 +89,7 @@ data Term
     | Always Term                 -- create a stable computation
     | Unbox Term                  -- use a stable computation
     | Fix Var Term                -- recursion (guarded?)
-    | Never
+    | Never                       -- has type EL A
     | Wait Chan                   -- InputChannel must be P or BP
     | Read Chan                   -- InputChannel must be B or BP
     | Head Term                   

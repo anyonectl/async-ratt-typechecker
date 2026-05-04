@@ -14,9 +14,11 @@ data TypeError
   = TypeMismatch            { term :: Term, expected :: Type, got :: Type }
   | ExpectedAL              { term :: Term, got :: Type }
   | ExpectedEL              { term :: Term, got :: Type }
+  | ExpectedSig             Term
   | ExpectedValue           Term
   | ExpectedBufferChannel   Term
   | ExpectedPushChannel     Term
+  | MissingAnnotation       Term
   | CtxError                ContextError
   | OtherError              String
   deriving (Eq)
@@ -43,5 +45,8 @@ instance Show TypeError where
     show (ExpectedPushChannel t) = 
         "Type mismatch in term " ++ show t ++
         ": expected channel to be push"
+    show (MissingAnnotation t) =
+        "Cannot infer type of " ++ show t ++ 
+        ", annotate with expected type"
     show (CtxError err) = "Context Error: " ++ show err
     show (OtherError msg) = "Error: " ++ msg
