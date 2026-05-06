@@ -16,16 +16,8 @@ isTickfree (Ctx (_, []))  = True
 isTickfree _              = False
 
 -- Extend the typing context with a variable binding
--- Needs to make sure that the variable is not already in the (simple) context
--- Should it also make sure that the variable is not already in the ticked contexts?
 addVar :: Var -> Type -> Ctx -> Ctx
-addVar var ty (Ctx ([], []))            = Ctx ([(var, ty)], [])
-addVar var ty (Ctx (simple, ticked))    = Ctx (update simple, ticked)
-  where
-    update []       = [(var, ty)]
-    update ((v, t) : rest)
-      | v == var  = (var, ty) : rest
-      | otherwise = (v, t) : update rest
+addVar x ty (Ctx (simple, ticked))    = Ctx ((x, ty) : simple, ticked)
 
 -- Extend the typing context with a tick on some clock
 addTick :: ClockExpr -> Ctx -> Ctx
@@ -33,10 +25,10 @@ addTick cl (Ctx (simple, ticked))   = Ctx ([], (cl, simple) : ticked)
 
 lookupType :: Var -> Ctx -> Either ContextError Type
 lookupType _   (Ctx ([], []))           = Left (ContextIsEmpty "cannot lookup in empty context")
-lookupType var (Ctx (simple, ticked))   =
-  case lookup var simple of
+lookupType x (Ctx (simple, ticked))   =
+  case lookup x simple of
     Just ty -> Right ty
-    Nothing -> searchTicked var ticked
+    Nothing -> searchTicked x ticked
   where
     -- Search for variable in ticked contexts (variable must have stable type)
     searchTicked :: Var -> [(ClockExpr, SimpleCtx)] -> Either ContextError Type
