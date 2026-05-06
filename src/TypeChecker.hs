@@ -162,13 +162,12 @@ infer ctx (Anno t ty) = do
 ---------------------------
 check :: Ctx -> Term -> Type -> Either TypeError Type
 
--- Pair
+-- Correct annotation
 check ctx (Pair t1 t2) (Prod ty1 ty2) = do
   _ <- check ctx t1 ty1
   _ <- check ctx t2 ty2
   Right (Prod ty1 ty2)
 
--- Injection
 check ctx (Inj InLeft t) (Sum ty1 ty2) = do
   _ <- check ctx t ty1
   Right (Sum ty1 ty2)
@@ -177,52 +176,66 @@ check ctx (Inj InRight t) (Sum ty1 ty2) = do
   _ <- check ctx t ty2
   Right (Sum ty1 ty2)
 
--- Let
 check ctx (Let x t1 t2) ty = do
   ty1 <- infer ctx t1
   _ <- check (addVar x ty1 ctx) t2 ty
   Right ty
 
--- Lambda
 check ctx (Lam x body) (Fun argTy returnTy) = do
   _ <- check (addVar x argTy ctx) body returnTy
   Right (Fun argTy returnTy)
 
--- Case
 check ctx (Case t x1 t1 x2 t2) ty = do
-  arg <- infer ctx t
-  case arg of
-    Sum ty1 ty2 -> do -- check that t is a sum type
+  tTy <- infer ctx t
+  case tTy of
+    Sum ty1 ty2 -> do
       _ <- check (addVar x1 ty1 ctx) t1 ty
       _ <- check (addVar x2 ty2 ctx) t2 ty
       Right ty
-    _ -> Left (OtherError ("Case argument " ++ show t ++ "should have type Sum _ _, but got type " ++ show arg))
+    _ -> Left (OtherError ("Case argument " ++ show t ++ "should have sum type (Sum), but got type " ++ show tTy))
 
--- Delay
 check ctx (Delay cl t) (EL ty) = do
   _ <- check (addTick cl ctx) t ty
   Right (EL ty)
 
--- Always/box
 check ctx (Always t) (Box ty) = do
   _ <- check (stableCtx ctx) t ty
   Right (Box ty)
 
--- Fix
 check ctx (Fix x t) ty = do
   let ctx' = addVar x (AL ty) (stableCtx ctx)
   _ <- check ctx' t ty
   Right ty
 
--- Never
-check _ Never (EL a) =
-  Right (EL a)
+check _ Never (EL ty) =
+  Right (EL ty)
 
--- Cons
 check ctx (Cons hd tl) (Sig ty) = do
   _ <- check ctx hd ty
   _ <- check ctx tl (EL (Sig ty))
   Right (Sig ty)
+
+-- Wrong annotation
+check _ (Pair t1 t2) ty =
+  Left (IncompatibleType { term = Pair t1 t2, needed = "product type (Prod)", got = ty })
+
+check _ (Inj i t) ty =
+  Left (IncompatibleType { term = Inj i t, needed = "sum type (Sum)", got = ty })
+
+check _ (Lam x body) ty =
+  Left (IncompatibleType { term = Lam x body, needed = "function type (Fun)", got = ty })
+
+check _ (Delay cl t) ty =
+  Left (IncompatibleType { term = Delay cl t, needed = "sometime-later type (EL)", got = ty })
+
+check _ (Always t) ty =
+  Left (IncompatibleType { term = Always t, needed = "box type (Box)", got = ty })
+
+check _ Never ty =
+  Left (IncompatibleType { term = Never, needed = "sometime-later type (EL)", got = ty })
+
+check _ (Cons hd tl) ty =
+  Left (IncompatibleType { term = Cons hd tl, needed = "signal type (Sig)", got = ty })
 
 -- Default
 check ctx t ty =

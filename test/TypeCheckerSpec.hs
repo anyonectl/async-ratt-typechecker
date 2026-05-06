@@ -59,9 +59,9 @@ spec = describe "TypeChecker" $ do
       infer populatedCtx (Pair (Variable "x") (Variable "notInContext")) 
         `shouldBe` Left (CtxError (VariableNotFound "notInContext"))
 
-    it "Pair check fails because given wrong type" $
+    it "Pair check fails when given wrong type" $
       check populatedCtx (Pair (Variable "x") (Variable "y")) (Sum Nat Nat) 
-        `shouldBe` Left (TypeMismatch { term = (Pair (Variable "x") (Variable "y")), expected = (Sum Nat Nat), got = (Prod Nat Nat)})
+        `shouldBe` Left (IncompatibleType { term = Pair (Variable "x") (Variable "y"), needed = "product type (Prod)", got = Sum Nat Nat})
   
   describe "Adv" $ do
     let advCtx = Ctx ([("x", EL Nat)], [(Clock (Variable "x"), [("x", EL Nat)])])
