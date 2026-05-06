@@ -40,24 +40,49 @@ spec = describe "TypeChecker" $ do
     it "Proj fails on a non-product type" $
       infer projTickedCtx (Proj Fst (Variable ("y"))) `shouldBe` Left (CtxError (VariableNotFound "y"))
 
+
+  describe "Pair" $ do
+    let populatedCtx = 
+                                              Ctx([
+                                                ("x", Nat)
+                                              , ("y", Nat)
+                                              , ("z", Prod Nat Nat)
+                                              , ("a", Sum Nat Nat)
+                                              , ("f", Fun Nat Nat)]
+                                              , [])
+
+    it "Pair infers Prod type from context" $
+      infer populatedCtx (Pair (Variable "x") (Variable "y")) 
+        `shouldBe` Right (Prod Nat Nat)
+
+    it "Pair fails on looking up variable in context" $
+      infer populatedCtx (Pair (Variable "x") (Variable "notInContext")) 
+        `shouldBe` Left (CtxError (VariableNotFound "notInContext"))
+
+    it "Pair check fails because given wrong type" $
+      check populatedCtx (Pair (Variable "x") (Variable "y")) (Sum Nat Nat) 
+        `shouldBe` Left (TypeMismatch { term = (Pair (Variable "x") (Variable "y")), expected = (Sum Nat Nat), got = (Prod Nat Nat)})
+  
   describe "Adv" $ do
-    let advCtx = Ctx ([("x", EL Nat)], ([(Clock (Variable "x"), [("x", EL Nat)])]))
+    let advCtx = Ctx ([("x", EL Nat)], [(Clock (Variable "x"), [("x", EL Nat)])])
 
     it "Adv extracts A from EL A when tick is in context" $
       infer advCtx (Adv (Variable "x")) `shouldBe` Right Nat
 
-    it "Adv fails when argument is not a variable" $
-      infer advCtx (Adv (App (Variable "x") UnitVal))
-        `shouldBe` Left (OtherError "(Adv x) expected variable as argument, but got: App (Variable \"x\") UnitVal")
+    it "Adv fails when argument id not value" $
+      let t = Adv (App (Variable "x") UnitVal) 
+      in infer advCtx t
+        `shouldBe` Left (ExpectedValue t)
 
     it "Adv extracts nested EL A from EL (EL A) when tick is in context" $
-      let advNestedCtx = Ctx ([], ([(Clock (Variable "e"), [("e", EL (EL Nat))])]))
-      in infer advNestedCtx (Adv (Variable "e")) 
-        `shouldBe` Right (EL Nat)
+      let t            = Adv (Variable "e")
+          advNestedCtx = Ctx ([], ([(Clock (Variable "e"), [("e", EL (EL Nat))])]))
+      in infer advNestedCtx t `shouldBe` Right (EL Nat)
 
     it "Adv fails when no tick in context" $
-      let noTickCtx = Ctx ([("x", EL Nat)], [])
-      in infer noTickCtx (Adv (Variable "x"))
+      let t         = Adv (Variable "x")
+          noTickCtx = Ctx ([("x", EL Nat)], [])
+      in infer noTickCtx t
         `shouldBe` Left (CtxError NoTickInContext)
 
     it "Adv fails when tick is on wrong clock" $

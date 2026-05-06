@@ -16,11 +16,14 @@ spec = describe "SignalCombinators" $ do
   describe "map" $ do
 
     it "map typechecks with boxed f" $
-      check ctx mapTerm mapType
-        `shouldBe` Right mapType
+      check ctx mapTerm mapType `shouldBe` Right mapType
+
+    it "map infers correctly to its type using annotation" $
+      infer ctx (Anno mapTerm mapType) `shouldBe` Right mapType
 
     it "mapbad fails: unboxed f crosses tick boundary" $
       check ctx mapTermBad mapTermBadType
         `shouldBe` Left (CtxError (UnstableType "f" (Nat --> Nat)))
+
 
     --- ... 
