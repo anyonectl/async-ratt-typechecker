@@ -12,7 +12,7 @@ data ContextError
 
 data TypeError
   = TypeMismatch            { term :: Term, expected :: Type, got :: Type }
-  | TypeCheckFailed         { term :: Term, checkedType :: Type , inferedType :: Type }
+  | TypeCheckFailed         { term :: Term, checkedType :: Type , inferredType :: Type }
   | ExpectedAL              { term :: Term, got :: Type }
   | ExpectedEL              { term :: Term, got :: Type }
   | ExpectedSig             { term :: Term, got :: Type }

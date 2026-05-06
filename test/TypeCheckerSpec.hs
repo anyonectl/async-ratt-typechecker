@@ -64,7 +64,7 @@ spec = describe "TypeChecker" $ do
         `shouldBe` Left (TypeMismatch { term = (Pair (Variable "x") (Variable "y")), expected = (Sum Nat Nat), got = (Prod Nat Nat)})
   
   describe "Adv" $ do
-    let advCtx = Ctx ([("x", EL Nat)], ([(Clock (Variable "x"), [("x", EL Nat)])]))
+    let advCtx = Ctx ([("x", EL Nat)], [(Clock (Variable "x"), [("x", EL Nat)])])
 
     it "Adv extracts A from EL A when tick is in context" $
       infer advCtx (Adv (Variable "x")) `shouldBe` Right Nat
