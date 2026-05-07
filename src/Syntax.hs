@@ -135,63 +135,102 @@ let_ x t1 t2 = Let x t1 t2
 
 
 -- PRETTY PRINTER
-instance Show Chan where 
-  show (Push ty)    = "push (" ++ show ty ++ ")"
-  show (Buf ty)     = "buf (" ++ show ty ++ ")"
-  show (PushBuf ty) = "pushbuf (" ++ show ty ++ ")"
+instance Show Type where
+  show = prettyType
+
+instance Show Chan where
+  show = prettyChan
 
 instance Show ClockExpr where
-  show (Clock v)            = "cl(" ++ show v ++ ")"
-  show (ClockUnion cl cl')  = "(" ++ show cl ++ " |_| " ++ show cl' ++ ")"
-
-instance Show Type where
-  show Unit           = "()"
-  show Nat            = "Nat"
-  show (Prod ty ty')  = "(" ++ show ty ++ ", " ++ show ty' ++ ")"
-  show (Sum ty ty')   = "(" ++ show ty ++ " + " ++ show ty' ++ ")"
-  show (Fun ty ty')   = "(" ++ show ty ++ " -> " ++ show ty' ++ ")"
-  show (EL ty)        = "EL (" ++ show ty ++ ")"
-  show (AL ty)        = "AL (" ++ show ty ++ ")"
-  show (Box ty)       = "□(" ++ show ty ++ ")"
-  show (Sig ty)       = "Sig " ++ show ty
-  show Empty          = "`empty type`"
+  show = prettyClock
 
 instance Show Term where
-  show (Variable x)         = "\"" ++ x ++ "\""
-  show UnitVal              = "()"
-  show Zero                 = "0"
-  show (Suc t)              = "(" ++ show t ++ " + 1)"
-  show (Pair t t')          = "(" ++ show t ++ ", " ++ show t' ++ ")"
-  show (Inj i t)            = "(" ++ show i ++ " (" ++ show t ++ "))"
-  show (Proj i t)           = "(" ++ show i ++ " (" ++ show t ++ "))"
-  show (Let x s t)          = 
-    "(let " ++ show x ++ " = " ++ show s ++ 
-    " in " ++ show t ++ ")"
-  show (Lam x t)            = "(\\" ++ show x ++ " . " ++ show t ++ ")"
-  show (App t t')           = "(" ++ show t ++ " (" ++ show t' ++ "))"
-  show (Case t x1 t1 x2 t2) = 
-    "(case " ++ show t ++ " of " ++ 
-    "(" ++ show InLeft ++ " " ++ show x1 ++ " -> " ++ show t1 ++ ")" ++ " , " ++
-    "(" ++ show InRight ++ " " ++ show x2 ++ " -> " ++ show t2 ++ ")"
-  show (Delay cl t)         = "delay (" ++ show cl ++ " " ++ show t ++ ")"
-  show (Adv v)              = "adv " ++ show v
-  show (AdvAL v)            = "advAL " ++ show v
-  show (Select v1 v2)       = "select (" ++ show v1 ++ " " ++ show v2 ++ ")"
-  show (Always t)           = "box " ++ show t
-  show (Unbox t)            = "unbox " ++ show t
-  show (Fix x t)            = "fix " ++ show x ++ " . " ++ show t
-  show Never                = "never"
-  show (Wait k)             = "wait " ++ show k
-  show (Read k)             = "read " ++ show k
-  show (Head s)             = "head " ++ show s
-  show (Tail s)             = "tail " ++ show s
-  show (Cons hd tl)         = "(" ++ show hd ++ " : " ++ show tl ++ ")"
-  show (Anno t ty)          = "(" ++ show t ++ " :: " ++ show ty ++ ")"
+  show = prettyTerm 0
 
 instance Show Injection where
-  show InLeft = "left"
+  show InLeft  = "left"
   show InRight = "right"
 
 instance Show Projection where
   show Fst = "fst"
   show Snd = "snd"
+
+indent :: Int -> String
+indent n = replicate (2 * n) ' '
+
+prettyType :: Type -> String
+prettyType Unit          = "()"
+prettyType Empty         = "`empty type`"
+prettyType Nat           = "Nat"
+prettyType (Prod ty ty') = "(" ++ prettyType ty ++ ", " ++ prettyType ty' ++ ")"
+prettyType (Sum ty ty')  = "(" ++ prettyType ty ++ " + "  ++ prettyType ty' ++ ")"
+prettyType (Fun ty ty')  = "(" ++ prettyType ty ++ " -> " ++ prettyType ty' ++ ")"
+prettyType (EL ty)       = "EL (" ++ prettyType ty ++ ")"
+prettyType (AL ty)       = "AL (" ++ prettyType ty ++ ")"
+prettyType (Box ty)      = "□(" ++ prettyType ty ++ ")"
+prettyType (Sig ty)      = "Sig " ++ prettyType ty
+
+prettyChan :: Chan -> String
+prettyChan (Push ty)    = "push ("    ++ prettyType ty ++ ")"
+prettyChan (Buf ty)     = "buf ("     ++ prettyType ty ++ ")"
+prettyChan (PushBuf ty) = "pushbuf (" ++ prettyType ty ++ ")"
+
+prettyClock :: ClockExpr -> String
+prettyClock (Clock t)           = "cl(" ++ prettyTerm 0 t ++ ")"
+prettyClock (ClockUnion cl cl') = prettyClock cl ++ " |_| " ++ prettyClock cl'
+
+prettyTerm :: Int -> Term -> String
+prettyTerm n term =
+  case term of
+    Variable x          -> x
+    UnitVal             -> "()"
+    Zero                -> "0"
+    Never               -> "never"
+    Wait k              -> "wait " ++ prettyChan k
+    Read k              -> "read " ++ prettyChan k
+    Suc t               -> "(" ++ prettyTerm n t ++ ") + 1"
+    Adv v               -> "adv " ++ prettyTerm n v
+    AdvAL v             -> "advAL " ++ prettyTerm n v
+    Unbox t             -> "unbox (" ++ prettyTerm n t ++ ")"
+    Head s              -> "head (" ++ prettyTerm n s ++ ")"
+    Tail s              -> "tail (" ++ prettyTerm n s ++ ")"
+    Always t            -> "box (" ++ prettyTerm n t ++ ")"
+    Proj p t            -> show p ++ " (" ++ prettyTerm n t ++ ")"
+    Inj  i t            -> show i ++ " " ++ prettyTerm n t
+    Anno t ty           -> prettyTerm n t ++ " : " ++ prettyType ty
+    Pair t t'           ->
+      "( " ++ prettyTerm n t ++ ", " ++ prettyTerm n t' ++ ")"
+    Select v1 v2        -> 
+      "select " ++ prettyTerm n v1 ++ " " ++ prettyTerm n v2
+
+    Lam x t             ->
+      "\\" ++ x ++ ".\n" ++ 
+      indent (n+1) ++ prettyTerm (n+1) t
+
+    App t t'            ->
+      "(" ++ prettyTerm n t ++ ") @\n" ++ 
+      indent (n+1) ++ "(" ++ prettyTerm (n+1) t' ++ ")"
+
+    Let x s t           ->
+      "let " ++ x ++ " = " ++ prettyTerm (n+1) s ++ " in\n" ++
+      indent (n+1) ++ prettyTerm (n+1) t
+
+    Case t x1 t1 x2 t2  ->
+      "case (" ++ prettyTerm n t ++ ") of\n" ++
+      indent (n+1) ++ "left " ++ x1 ++ " ->\n" ++
+      indent (n+2) ++ prettyTerm (n+2) t1 ++ "\n" ++
+      indent (n+1) ++ "right " ++ x2 ++ " ->\n" ++
+      indent (n+2) ++ prettyTerm (n+2) t2
+
+    Delay cl t ->
+      "delay\n" ++ 
+      indent (n+1) ++ prettyClock cl ++ "\n" ++
+      indent (n+1) ++ prettyTerm (n+1) t
+
+    Fix x t ->
+      "fix " ++ x ++ " .\n" ++
+      indent (n+1) ++ prettyTerm (n+1) t
+
+    Cons hd tl ->
+      prettyTerm n hd ++ " ::\n" ++
+      indent (n+1) ++ prettyTerm (n+1) tl
