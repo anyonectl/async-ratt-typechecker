@@ -199,7 +199,7 @@ prettyTerm n term =
     Inj  i t            -> show i ++ " " ++ prettyTerm n t
     Anno t ty           -> prettyTerm n t ++ " : " ++ prettyType ty
     Pair t t'           ->
-      "( " ++ prettyTerm n t ++ ", " ++ prettyTerm n t' ++ ")"
+      "(" ++ prettyTerm n t ++ ", " ++ prettyTerm n t' ++ ")"
     Select v1 v2        -> 
       "select " ++ prettyTerm n v1 ++ " " ++ prettyTerm n v2
 
