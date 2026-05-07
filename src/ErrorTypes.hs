@@ -1,7 +1,6 @@
 module ErrorTypes where
 
 import Syntax
-import PrettyPrinter
 
 data ContextError
     = VariableNotFound Var

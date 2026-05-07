@@ -24,7 +24,6 @@ library
                     , Context
                     , SignalCombinators
                     , Demo
-                    , PrettyPrinter
     build-depends:    base >=4.7 && <5,
                       array
     hs-source-dirs:   src
