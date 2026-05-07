@@ -5,7 +5,7 @@ data Chan
     = Push Type
     | Buf Type
     | PushBuf Type
-    deriving (Eq, Show)
+    deriving (Eq)
 
 isPush :: Chan -> Bool
 isPush (Push _)    = True
@@ -31,7 +31,7 @@ inputChans = [Push Nat, Buf Nat, PushBuf Nat]
 data ClockExpr 
     = Clock Term
     | ClockUnion ClockExpr ClockExpr
-    deriving (Eq, Show)
+    deriving (Eq)
 
 
 -- VARIABLES
@@ -50,7 +50,7 @@ data Type
     | AL Type                     -- delay on the global clock (anytime later); a value of type this AL type is a computation that will produce a value of type A after any clock ticks
     | Box Type                    -- type of a timeless computation (the stable modal operator, pronounced 'box')
     | Sig Type                    -- Sig A is a signal of type A
-    deriving (Eq, Show)
+    deriving (Eq)
 
 isStableType :: Type -> Bool
 isStableType Unit        = True
@@ -96,10 +96,10 @@ data Term
     | Tail Term
     | Cons Term Term
     | Anno Term Type 
-    deriving (Eq, Show)
+    deriving (Eq)
 
-data Injection  = InLeft | InRight deriving (Eq, Show)
-data Projection = Fst    | Snd     deriving (Eq, Show)
+data Injection  = InLeft | InRight deriving (Eq)
+data Projection = Fst    | Snd     deriving (Eq)
 
 -- Check if a term is a value (can't be reduced further) - relevant for `advance` and `select`
 isValue :: Term -> Bool
