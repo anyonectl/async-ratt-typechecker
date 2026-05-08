@@ -162,7 +162,7 @@ prettyType :: Type -> String
 prettyType Unit          = "()"
 prettyType Empty         = "`empty type`"
 prettyType Nat           = "Nat"
-prettyType (Prod ty ty') = "(" ++ prettyType ty ++ ", " ++ prettyType ty' ++ ")"
+prettyType (Prod ty ty') = "(" ++ prettyType ty ++ " × " ++ prettyType ty' ++ ")"
 prettyType (Sum ty ty')  = "(" ++ prettyType ty ++ " + "  ++ prettyType ty' ++ ")"
 prettyType (Fun ty ty')  = "(" ++ prettyType ty ++ " -> " ++ prettyType ty' ++ ")"
 prettyType (EL ty)       = "EL (" ++ prettyType ty ++ ")"
