@@ -36,7 +36,7 @@ lookupType x (Ctx (simple, ticked))   =
     searchTicked var' ((_, simple') : rest) =
       case lookup var' simple' of
         Just ty | isStableType ty -> Right ty -- only stable types can cross ticks
-        Just ty -> Left (UnstableType var' ty)
+        Just _ -> Left (VariableNotFound var')
         Nothing -> searchTicked var' rest
 
 -- Remove all ticks and non-stable variable bindings from a typing context
