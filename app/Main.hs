@@ -8,4 +8,4 @@ import Demo
 import SignalCombinators
 
 main :: IO ()
-main = putStrLn "Hello! \nPrettyPrint Async RaTT by running examples of Signal Combinators"
+main = putStrLn "Hello!"
