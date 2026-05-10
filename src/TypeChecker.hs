@@ -68,7 +68,7 @@ infer ctx (Case t x1 t1 x2 t2) = do
       if ty1 == ty2
         then Right ty1
         else Left $ OtherError ("Mismatch in term: " ++ show (Case t x1 t1 x2 t2) ++ ", branches have different types")
-    _         -> Left $ IncompatibleType { term = Case t x1 t1 x2 t2, expected = ESum, got = ty}
+    _         -> Left $ IncompatibleType { term = t, expected = ESum, got = ty}
 
 infer _ (Delay cl t) =
   Left $ MissingAnnotation (Delay cl t)
@@ -109,7 +109,7 @@ infer ctx (Select v1 v2)
                                       (Prod a1 a2))
             (EL _, _)     -> Left $ IncompatibleType { term = v1, expected = EEL, got = ty1 }
             (_, EL _)     -> Left $ IncompatibleType { term = v2, expected = EEL, got = ty2 }
-            _              -> Left $ OtherError "Select: expected two delayed computations EL A1 and EL A2" -- is this relevant is we include the two others? 
+            _             -> Left $ OtherError "Select: expected two delayed computations EL A1 and EL A2"
 
 infer ctx (Always t) = do
   let stableCtx' = stableCtx ctx
@@ -202,7 +202,7 @@ check ctx (Case t x1 t1 x2 t2) ty = do
       _ <- check (addVar x1 ty1 ctx) t1 ty
       _ <- check (addVar x2 ty2 ctx) t2 ty
       Right ty
-    _ -> Left $ IncompatibleType { term = Case t x1 t1 x2 t2, expected = ESum, got = tTy}
+    _ -> Left $ IncompatibleType { term = t, expected = ESum, got = tTy}
 
 check ctx (Delay cl t) (EL ty) = do
   _ <- check (addTick cl ctx) t ty
