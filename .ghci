@@ -1,0 +1,11 @@
+:set prompt "smal-ratt> "
+import Syntax
+import Context
+import ErrorTypes
+import TypeChecker
+import Demo
+import SignalCombinators
+
+putStrLn "\n\nHello!\n"
+putStrLn "This is proof-of-concept type checker implementation of a SMAL(ler) version – subset – of Async RaTT, a modal language for asynchronous functional reactive programming, named SMAL RaTT.\n"
+putStrLn "Made by Louise Andersen (LA) and Sofie Meta (SM)\n\n"
