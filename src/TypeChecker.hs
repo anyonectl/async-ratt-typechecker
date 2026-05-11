@@ -62,7 +62,7 @@ infer ctx (Case t x1 t1 x2 t2) = do
   case ty of
     Sum a1 a2 -> do
       ty1 <- infer (addVar x1 a1 ctx) t1
-      _ <- check (addVar x2 a2 ctx) t2 ty1
+      _   <- check (addVar x2 a2 ctx) t2 ty1
       Right ty1
     _         -> Left $ IncompatibleType { term = t, expected = ESum, got = ty}
 
