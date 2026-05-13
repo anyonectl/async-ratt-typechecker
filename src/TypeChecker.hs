@@ -70,8 +70,9 @@ infer ctx (Case t x1 t1 x2 t2) = do
         else Left $ OtherError ("Mismatch in term: " ++ show (Case t x1 t1 x2 t2) ++ ", branches have different types")
     _         -> Left $ IncompatibleType { term = t, expected = ESum, got = ty}
 
-infer _ (Delay cl t) =
-  Left $ MissingAnnotation (Delay cl t)
+infer ctx (Delay cl t) = do
+  ty <- infer (addTick cl ctx) t
+  Right (EL ty)
 
 infer ctx (Adv v) =
   if not $ isValue v
