@@ -1,3 +1,7 @@
+src/Utils.hs
+test/UtilsSpec.hs
+
+
 ### Project specifics ###
 Figures/
 .vscode/

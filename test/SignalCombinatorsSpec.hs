@@ -9,7 +9,7 @@ import Context
 import ErrorTypes
 
 spec :: Spec
-spec = describe "SignalCombinators" $ do
+spec = describe "SignalCombinators.hs" $ do
   let ctx = Ctx ([], [])
   describe "map" $ do
     it "map infers correctly to its type using annotation" $
@@ -23,6 +23,12 @@ spec = describe "SignalCombinators" $ do
     it "mapbad fails: unboxed f crosses tick boundary" $
       check ctx mapTermBad mapTermBadType
         `shouldBe` Left (CtxError (VariableNotFound "f"))
+    it "map with wrong clock" $
+      infer ctx (Anno mapTermWrongClock mapType) 
+        `shouldBe` Left (CtxError (NoTickInContext))
+    it "map original" $
+      infer ctx (Anno mapTermOrg mapType) `shouldBe` Right mapType
+
   describe "switch" $ do
     it "switch typechecks with correct type" $
       infer ctx (Anno switchTerm switchType) `shouldBe` Right switchType

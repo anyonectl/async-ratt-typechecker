@@ -14,6 +14,18 @@ mapTerm =
               (Delay (Clock (var "xs"))
                 (AdvAL (var "r") @@ var "f" @@ Adv (var "xs"))) -- map f xs' 
 
+mapTermOrg :: Term
+mapTermOrg =
+  Fix "r" $ Lam "f" $ Lam "s" $
+        Let "x"  (Head (var "s")) $               -- x: head of s
+          Let "xs" (Tail (var "s")) $             -- xs: tail of s
+            Cons                                  -- construct a new signal
+              (App (Unbox (var "f")) (var "x"))
+              (Delay (Clock (var "xs"))
+                (App  (App (AdvAL (var "r"))      -- 
+                           (var "f")) 
+                      (Adv (var "xs"))))          -- map f xs' 
+
 mapType :: Type
 mapType = Box (Nat -->  Nat) --> Sig Nat --> Sig Nat
 
@@ -30,6 +42,16 @@ mapTermBad =
         (var "f" @@ var "x") -- f is not unboxed
         (Delay (Clock (var "xs"))
           (AdvAL (var "r") @@ var "f" @@ Adv (var "xs")))
+
+mapTermWrongClock :: Term
+mapTermWrongClock = 
+  Fix "r" $ lam "f" $ lam "s" $
+        let_ "x"  (Head (var "s")) $ -- x: head of s
+          let_ "xs" (Tail (var "s")) $ -- xs: tail of s
+            Cons -- construct a new signal
+              (Unbox (var "f") @@ var "x")
+              (Delay (Clock (Wait (inputChans !! 0)))
+                (AdvAL (var "r") @@ var "f" @@ Adv (var "xs"))) -- map f xs' 
 
 -- zip
 --

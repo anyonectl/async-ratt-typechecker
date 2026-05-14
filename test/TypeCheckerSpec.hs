@@ -8,8 +8,8 @@ import Context
 import ErrorTypes
 
 spec :: Spec
-spec = describe "TypeChecker" $ do
-  describe "Variables" $ do
+spec = describe "TypeChecker.hs" $ do
+  describe "Variable" $ do
     let simpleCtx = Ctx ([ ("x", Nat) ], [])
     it "returns UnboundVar for missing variable" $
       infer simpleCtx (Variable "y") 
@@ -129,10 +129,14 @@ spec = describe "TypeChecker" $ do
       in infer ctx (Select (Variable "a") (Variable "b")) 
       `shouldBe` Left (CtxError NoTickInContext)
 
+{- 
+A value of type $\DelayE A$ is a pair consisting of a clock $\theta$ and 
+a computation that can be executed to return data of type $A$ on the next 
+tick on $\theta$ -}
   describe "Delay" $ do
-    -- Inside delay we check that the type of a (term in the next time step of cl("x")) <= ty) when we are do (Delay <= EL ty)
-    let ctx  = Ctx ([("x", EL Nat)], [])  -- addTick cl("x") ctx  = Ctx ([],[((Clock (Variable "x")), [])])
-        ctx' = (addVar "x" Nat ctx)       -- addTick cl("x") ctx' = Ctx ([],[((Clock (Variable "x")), [("x", Nat)])])
+    -- Inside delay we check that the type of a (term in the next time step of cl("x")) <= ty) when we are do (Delay : EL ty)
+    let ctx  = Ctx ([("x", EL Nat)], [])  -- addTick cl("x") ctx  = Ctx ([],[((Clock (Variable "x")), [("x", EL Nat)])])
+        ctx' = (addVar "x" Nat ctx)       -- addTick cl("x") ctx' = Ctx ([],[((Clock (Variable "x")), [("x", Nat), ("x", EL Nat)])])
          
     it "Delay infer fails without annotation"
       let t = Delay (Clock (Variable "x")) (Variable "x")
@@ -149,6 +153,17 @@ spec = describe "TypeChecker" $ do
     it "Delay body is checked after tick is added to context" $
       let t = Delay (Clock (Variable "x")) (Variable "y") -- y is not in ctx
       in check ctx' t (EL Nat) `shouldBe` Left (CtxError (VariableNotFound "y"))
+
+    it "Delay clock on different term" $
+      let k = Wait (inputChans !! 0)
+          t = Delay (Clock (k)) (Variable "x")
+
+      -- futureCtx = Ctx ([],[((Clock (k)), [("x", EL Nat)])])
+      -- check futureCtx (Variable "x") Nat
+      -- lookupType "x" futureCtx
+      -- Unstable
+      in check ctx' t (EL Nat) `shouldBe` Right (EL Nat )
+
 
   describe "Unbox" $ do
     let simpleCtx     = Ctx ( [("b", Box Nat), ("n", Nat), ("f", Fun Nat Nat)], [])
