@@ -145,7 +145,7 @@ spec = describe "TypeChecker.hs" $ do
       check ctx t Nat `shouldBe` Left (IncompatibleType { term = t, expected = EEL, got = Nat})
   
     it "body is checked for wrong variable" $ do
-      let t = Delay (Clock x) (Variable "y")
+      let t = Delay (Clock (Variable "y")) (Variable "y")
       check ctx t (EL Nat) `shouldBe` Left (CtxError (VariableNotFound "y"))
 
     it "clock on different term fails" $ do
