@@ -25,7 +25,6 @@ addTick :: ClockExpr -> Ctx -> Ctx
 addTick cl (Ctx (simple, ticked))   = Ctx ([], (cl, simple) : ticked)
 
 lookupType :: Var -> Ctx -> Either ContextError Type
-lookupType _   (Ctx ([], []))           = Left (ContextIsEmpty "cannot lookup in empty context")
 lookupType x (Ctx (simple, ticked))   =
   case lookup x simple of
     Just ty -> Right ty
@@ -51,14 +50,6 @@ stableCtx (Ctx (sc, ticks)) =
 preTick :: Ctx -> Either ContextError Ctx -- need to also check if a term has a specific clock ..
 preTick (Ctx (_, (_, simple) : rest)) = Right (Ctx (simple, rest))
 preTick _                             = Left NoTickInContext
-
-
--- Used by Adv: checks that the most recent tick belongs to a specific term
-preTickOnSpecificTerm :: Ctx -> Term -> Either ContextError Ctx
-preTickOnSpecificTerm (Ctx (_, (Clock t, simple) : rest)) target
-  | t == target = Right (Ctx (simple, rest))
-preTickOnSpecificTerm (Ctx (_, _ : _)) _ = Left NoTickInContext
-preTickOnSpecificTerm _                _ = Left NoTickInContext
 
 -- Used by Select: checks that the most recent tick matches a clock expression
 -- Handles nested ClockUnions recursively 

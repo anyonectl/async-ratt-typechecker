@@ -44,7 +44,6 @@ test-suite tc-test
     type:             exitcode-stdio-1.0
     main-is:          Spec.hs
     other-modules:    TypeCheckerSpec
-                    , ContextSpec
                     , SignalCombinatorsSpec
     build-depends:    base >=4.7 && <5,
                       hspec,

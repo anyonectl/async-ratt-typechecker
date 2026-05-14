@@ -62,10 +62,8 @@ infer ctx (Case t x1 t1 x2 t2) = do
   case ty of
     Sum a1 a2 -> do
       ty1 <- infer (addVar x1 a1 ctx) t1
-      ty2 <- infer (addVar x2 a2 ctx) t2
-      if ty1 == ty2
-        then Right ty1
-        else Left $ OtherError ("Mismatch in term: " ++ show (Case t x1 t1 x2 t2) ++ ", branches have different types")
+      _   <- check (addVar x2 a2 ctx) t2 ty1
+      Right ty1
     _         -> Left $ IncompatibleType { term = t, expected = ESum, got = ty}
 
 infer ctx (Delay cl t) = do
@@ -106,13 +104,12 @@ infer ctx (Select v1 v2)
                                       (Sum  (Prod a1 (EL a2))
                                             (Prod (EL a1) a2))
                                       (Prod a1 a2))
-            (EL _, _)     -> Left $ IncompatibleType { term = v1, expected = EEL, got = ty1 }
-            (_, EL _)     -> Left $ IncompatibleType { term = v2, expected = EEL, got = ty2 }
+            (EL _, _)     -> Left $ IncompatibleType { term = v2, expected = EEL, got = ty2 }
+            (_, EL _)     -> Left $ IncompatibleType { term = v1, expected = EEL, got = ty1 }
             _             -> Left $ OtherError "Select: expected two delayed computations EL A1 and EL A2"
 
 infer ctx (Always t) = do
-  let stableCtx' = stableCtx ctx
-  ty <- infer stableCtx' t
+  ty <- infer (stableCtx ctx) t
   Right (Box ty)
 
 infer ctx (Unbox t) = do
@@ -135,7 +132,7 @@ infer _ (Wait k) =
 infer _ (Read k) =
   if isBuf k && k `elem` inputChans
     then Right (chanType k)
-    else Left $ IncompatibleChan { term = Wait k, expected = EBufChan, gotC = k }
+    else Left $ IncompatibleChan { term = Read k, expected = EBufChan, gotC = k }
 
 infer ctx (Head t) = do
   ty <- infer ctx t
