@@ -23,10 +23,8 @@ infer _ Zero =
   Right Nat
 
 infer ctx (Suc t) = do
-  ty <- infer ctx t
-  if ty == Nat
-    then Right Nat
-    else Left $ IncompatibleType { term = Suc t, expected =  ENat, got = ty}
+  _ <- check ctx t Nat
+  Right Nat
 
 infer ctx (Pair t1 t2) = do
   ty1 <- infer ctx t1
@@ -189,8 +187,8 @@ check ctx (Let x t1 t2) ty = do
   _ <- check (addVar x ty1 ctx) t2 ty
   Right ty
 
-check ctx (Lam x body) (Fun argTy returnTy) = do
-  _ <- check (addVar x argTy ctx) body returnTy
+check ctx (Lam x t) (Fun argTy returnTy) = do
+  _ <- check (addVar x argTy ctx) t returnTy
   Right (Fun argTy returnTy)
 
 check _   (Lam x body) ty =

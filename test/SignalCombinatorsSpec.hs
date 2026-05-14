@@ -23,7 +23,7 @@ spec = describe "SignalCombinators" $ do
 
     it "mapbad fails: unboxed f crosses tick boundary" $
       check ctx mapTermBad mapTermBadType
-        `shouldBe` Left (CtxError (UnstableType "f" (Nat --> Nat)))
+        `shouldBe` Left (CtxError (VariableNotFound "f"))
 
 
     --- ... 

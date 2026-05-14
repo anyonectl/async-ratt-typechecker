@@ -5,7 +5,6 @@ import Syntax
 data ContextError
     = VariableNotFound Var
     | ContextIsEmpty String
-    | UnstableType Var Type
     | NoTickInContext
     | OtherContextError String
     deriving (Eq, Show)
