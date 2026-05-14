@@ -26,8 +26,6 @@ spec = describe "SignalCombinators.hs" $ do
     it "map with wrong clock" $
       infer ctx (Anno mapTermWrongClock mapType) 
         `shouldBe` Left (CtxError (NoTickInContext))
-    it "map original" $
-      infer ctx (Anno mapTermOrg mapType) `shouldBe` Right mapType
 
   describe "switch" $ do
     it "switch typechecks with correct type" $

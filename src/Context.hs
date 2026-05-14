@@ -8,14 +8,6 @@ type SimpleCtx = [(Var, Type)]
 newtype Ctx = Ctx (SimpleCtx, [(ClockExpr, SimpleCtx)]) -- if you read from right to left: SimpleCtx, then a tick, then a new SimpleCtx
   deriving (Show)
 
-isEmptyCtx :: Ctx -> Bool
-isEmptyCtx (Ctx ([], [])) = True
-isEmptyCtx _              = False
-
-isTickfree :: Ctx -> Bool
-isTickfree (Ctx (_, []))  = True
-isTickfree _              = False
-
 -- Extend the typing context with a variable binding
 addVar :: Var -> Type -> Ctx -> Ctx
 addVar x ty (Ctx (simple, ticked))    = Ctx ((x, ty) : simple, ticked)

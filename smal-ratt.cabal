@@ -39,7 +39,7 @@ executable smal-ratt
     hs-source-dirs:   app
     default-language: Haskell2010
 
-test-suite tc-test
+test-suite smal-ratt-test
     import:           warnings
     type:             exitcode-stdio-1.0
     main-is:          Spec.hs

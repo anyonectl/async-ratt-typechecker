@@ -9,28 +9,33 @@ import ErrorTypes
 
 spec :: Spec
 spec = describe "TypeChecker.hs" $ do
-  describe "Variable" $ do
+  describe "Variable / lookup in context" $ do
     let simpleCtx = Ctx ([ ("x", Nat) ], [])
+        x         = Variable "x"
+
     it "returns UnboundVar for missing variable" $
       infer simpleCtx (Variable "y") 
         `shouldBe` Left (CtxError (VariableNotFound "y"))
 
     it "infers variable in simple context" $
-      infer simpleCtx (Variable "x") `shouldBe` Right Nat
+      infer simpleCtx x `shouldBe` Right Nat
 
     it "infers variable in ticked context" $
       let tickedCtx = Ctx ([], [( Clock Zero, [("x", Nat)] )])
-      in infer tickedCtx (Variable "x") `shouldBe` Right Nat
+      in infer tickedCtx x `shouldBe` Right Nat
 
-  describe "Projection" $ do
+    it "check defaults to infer on correct type" $ do
+      check simpleCtx x Nat `shouldBe` Right Nat
+
+  describe "Projection ()" $ do
     let projTickedCtx = Ctx ([], [(Clock Zero, [("x", Prod Nat Nat)])])
-    it "Fst projects the first component of a product" $
+    it "fst projects the first component of a product" $
       infer projTickedCtx (Proj Fst (Variable "x")) `shouldBe` Right Nat
 
-    it "Snd projects the second component of a product" $
+    it "snd projects the second component of a product" $
       infer projTickedCtx (Proj Snd (Variable ("x"))) `shouldBe` Right Nat
 
-    it "Check fails when given wrong type" $
+    it "check fails when given wrong type" $
       let t  = Proj Fst (Variable "x")
           ty = Sum Nat Nat 
       in check projTickedCtx t ty 
@@ -44,92 +49,92 @@ spec = describe "TypeChecker.hs" $ do
                         , ("f", Fun Nat Nat)]
                         , []) -- no ticks
 
-    it "Infers Prod type from context" $
+    it "infers Prod type from context" $
       infer pairCtx (Pair (Variable "x") (Variable "y")) 
         `shouldBe` Right (Prod Nat Nat)
 
-    it "Fails on looking up non-existent variable in context" $
+    it "fails on looking up non-existent variable in context" $
       infer pairCtx (Pair (Variable "x") (Variable "notInContext")) 
         `shouldBe` Left (CtxError (VariableNotFound "notInContext"))
 
-    it "Check fails when given wrong type" $
+    it "check fails when given wrong type" $
       check pairCtx (Pair (Variable "x") (Variable "y")) (Sum Nat Nat) 
         `shouldBe` Left (IncompatibleType { term = Pair (Variable "x") (Variable "y"), expected = EProd, got = Sum Nat Nat})
   
-  describe "Adv" $ do
+  describe "Advance (EL)" $ do
     let advCtx = Ctx ([("x", EL Nat)], [(Clock (Variable "x"), [("x", EL Nat)])])
 
-    it "Adv extracts A from EL A when tick is in context" $
+    it "correctly extracts A from EL A when tick is in context" $
       infer advCtx (Adv (Variable "x")) `shouldBe` Right Nat
 
-    it "Adv fails when argument id not value" $
+    it "fails when argument id not value" $
       let v = App (Variable "x") UnitVal
           t = Adv v
       in infer advCtx t
         `shouldBe` Left IncompatibleTerm { term = t , expected = EValue, gotT = v}
 
-    it "Adv extracts nested EL A from EL (EL A) when tick is in context" $
+    it "correctly extracts nested EL A from EL (EL A) when tick is in context" $
       let t            = Adv (Variable "e")
           advNestedCtx = Ctx ([], ([(Clock (Variable "e"), [("e", EL (EL Nat))])]))
       in infer advNestedCtx t `shouldBe` Right (EL Nat)
 
-    it "Adv fails when no tick in context" $
+    it "fails when no tick in context" $
       let t         = Adv (Variable "x")
           noTickCtx = Ctx ([("x", EL Nat)], [])
       in infer noTickCtx t
         `shouldBe` Left (CtxError NoTickInContext)
 
-    it "Adv fails when tick is on wrong clock" $
+    it "fails when tick is on wrong clock" $
       let wrongClockCtx = Ctx ([("x", EL Nat)], ([(Clock (Variable "y"), [("x", EL Nat)])]))
       in infer wrongClockCtx (Adv (Variable "x"))
         `shouldBe` Left (CtxError NoTickInContext)
 
-    it "Adv fails when v does not have a delayed type" $
+    it "fails when v does not have a delayed type" $
       let t = Adv (Variable "x")
           wrongTypeCtx = Ctx ([("x", Nat)], ([(Clock (Variable "x"), [("x", Nat)])]))
       in infer wrongTypeCtx t
         `shouldBe` Left (IncompatibleType { term = t, expected = EEL , got = Nat })
 
-  describe "AdvAL" $ do
-    it "AdvAL fails when no tick in context" $
+  describe "Advance AL" $ do
+    it "fails when no tick in context" $
       let noTickCtx = Ctx ([("x", EL Nat)], [])
       in infer noTickCtx (AdvAL (Variable "x"))
         `shouldBe` Left (CtxError NoTickInContext)
 
-    it "AdvAL extracts A from AL A when tick is other clock" $
+    it "correctly extracts A from AL A when tick is other clock" $
       let otherClockCtx = Ctx ([("x", EL Nat)], ([(Clock (Variable "other"), [("x", AL Nat)])]))
       in infer otherClockCtx (AdvAL (Variable "x"))
         `shouldBe` Right Nat
 
-  describe "Select" $ do
+  describe "Select EL EL" $ do
     let selectTy = Right (Sum (Sum (Prod Nat (EL Nat)) 
                                             (Prod (EL Nat) Nat)) 
                                        (Prod Nat Nat))
 
-    it "Select extracts (A1 x EL A2) + (EL A1 x A2) + (A1 x A2) when tick single variable"
+    it "correctly extracts three-way sum type when tick single variable"
       let ctx = Ctx ([], ([(Clock (Variable "a"), [("a", EL Nat), ("b", EL Nat)])]))
       in infer ctx (Select (Variable "a") (Variable "b")) 
       `shouldBe` selectTy
 
-    it "Select extracts (A1 x EL A2) + (EL A1 x A2) + (A1 x A2) when tick is on union of clocks"
+    it "correctly extracts three-way sum type when tick is on union of clocks"
       let ctx = Ctx ([], [ ((ClockUnion (Clock (Variable "a")) (Clock (Variable "b")))
                                    , [("a", EL Nat), ("b", EL Nat)])])      
       in infer ctx (Select (Variable "a") (Variable "b")) 
       `shouldBe` selectTy
 
-    it "Select fails when tick is on union of clocks in wrong order"
+    it "fails when tick is on union of clocks in wrong order"
       let ctx = Ctx ([], [ ((ClockUnion (Clock (Variable "b")) (Clock (Variable "a")))
                                    , [("a", EL Nat), ("b", EL Nat)])])      
       in infer ctx (Select (Variable "a") (Variable "b")) 
       `shouldBe` Left (CtxError NoTickInContext)
 
-    it "Select fails when variable not in latest ticked"
+    it "fails when variable not in latest ticked"
       let ctx = Ctx ([], [ (Clock Zero, [("a", EL Nat)])
                          , (Clock (Variable "a"),  [("a", EL Nat), ("b", EL Nat)]) ])      
       in infer ctx (Select (Variable "a") (Variable "b")) 
       `shouldBe` Left (CtxError NoTickInContext)
 
-  describe "Delay" $ do
+  describe "Delay EL" $ do
     let ctx  = Ctx ([("x", Nat)], [])      -- addTick cl("x") ctx = Ctx ([],[((Clock (Variable "x")), [("x", Nat), ])])
         x    = (Variable "x")
     it "pass in valid context" $ do
@@ -194,7 +199,7 @@ spec = describe "TypeChecker.hs" $ do
         `shouldBe` Left (IncompatibleType { term = t, expected = EBox, got = Fun Nat Nat })
 
 
-  describe "Always" $ do 
+  describe "Always (box)" $ do 
     let simpleCtx     = Ctx ( [("x", Box Nat), ("y", Nat), ("f", Fun Nat Nat)], [])
     let tickedCtx     = Ctx ( [], [ ((Clock (Variable "x")), [("x", Box Nat), ("y", Nat), ("f", Fun Nat Nat)]) 
                                   , ((Clock Zero),           [])
