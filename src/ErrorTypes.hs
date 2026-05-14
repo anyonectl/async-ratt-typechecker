@@ -4,7 +4,6 @@ import Syntax
 
 data ContextError
     = VariableNotFound Var
-    | ContextIsEmpty String
     | NoTickInContext
     | OtherContextError String
     deriving (Eq)
@@ -72,9 +71,6 @@ instance Show ContextError where
   show (VariableNotFound v) =
     "VariableNotFound: variable '" ++ show v ++ 
     "' not found in context"
-  show (UnstableType v ty) =
-    "UnstableType: variable '" ++ show v ++
-    "' has type '" ++ show ty ++ "'"
   show NoTickInContext =
     "NoTickInContext: No (matching) tick in context"
   show (OtherContextError msg) =

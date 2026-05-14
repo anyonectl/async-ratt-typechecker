@@ -129,41 +129,33 @@ spec = describe "TypeChecker.hs" $ do
       in infer ctx (Select (Variable "a") (Variable "b")) 
       `shouldBe` Left (CtxError NoTickInContext)
 
-{- 
-A value of type $\DelayE A$ is a pair consisting of a clock $\theta$ and 
-a computation that can be executed to return data of type $A$ on the next 
-tick on $\theta$ -}
   describe "Delay" $ do
-    -- Inside delay we check that the type of a (term in the next time step of cl("x")) <= ty) when we are do (Delay : EL ty)
-    let ctx  = Ctx ([("x", EL Nat)], [])  -- addTick cl("x") ctx  = Ctx ([],[((Clock (Variable "x")), [("x", EL Nat)])])
-        ctx' = (addVar "x" Nat ctx)       -- addTick cl("x") ctx' = Ctx ([],[((Clock (Variable "x")), [("x", Nat), ("x", EL Nat)])])
-         
-    it "Delay infer fails without annotation"
-      let t = Delay (Clock (Variable "x")) (Variable "x")
-      in infer ctx t `shouldBe` Left (MissingAnnotation t)
+    let ctx  = Ctx ([("x", Nat)], [])      -- addTick cl("x") ctx = Ctx ([],[((Clock (Variable "x")), [("x", Nat), ])])
+        x    = (Variable "x")
+    it "pass in valid context" $ do
+      let t = Delay (Clock x) x
+      infer ctx t `shouldBe` Right (EL Nat)
       
-    it "Delay infers correctly with annotated EL type" $
-      let t = Anno (Delay (Clock (Variable "x")) (Variable "x")) (EL Nat)
-      in infer ctx' t `shouldBe` Right (EL Nat)
+    it "pass with annotated EL type in valid context" $ do
+      let t = Anno (Delay (Clock x) x) (EL Nat)
+      infer ctx t `shouldBe` Right (EL Nat)
 
-    it "Delay fails with wrong annotation: not EL type" $
-      let t = Delay (Clock (Variable "x")) (Variable "x")
-      in check ctx' t Nat `shouldBe` Left (IncompatibleType { term = t, expected = EEL, got = Nat})
+    it "Delay fails with wrong annotation: not EL type" $ do
+      let t = Delay (Clock x) x
+      check ctx t Nat `shouldBe` Left (IncompatibleType { term = t, expected = EEL, got = Nat})
   
-    it "Delay body is checked after tick is added to context" $
-      let t = Delay (Clock (Variable "x")) (Variable "y") -- y is not in ctx
-      in check ctx' t (EL Nat) `shouldBe` Left (CtxError (VariableNotFound "y"))
+    it "Delay body is checked after tick is added to context" $ do
+      let t = Delay (Clock x) (Variable "y")
+      check ctx t (EL Nat) `shouldBe` Left (CtxError (VariableNotFound "y"))
 
-    it "Delay clock on different term" $
-      let k = Wait (inputChans !! 0)
-          t = Delay (Clock (k)) (Variable "x")
-
-      -- futureCtx = Ctx ([],[((Clock (k)), [("x", EL Nat)])])
-      -- check futureCtx (Variable "x") Nat
-      -- lookupType "x" futureCtx
-      -- Unstable
-      in check ctx' t (EL Nat) `shouldBe` Right (EL Nat )
-
+    it "Delay clock on different term fails" $ do
+      let w = Wait (inputChans !! 0)
+          t = Delay (Clock (w)) x 
+      check ctx t (EL Nat) `shouldBe` Left (OtherError "Clock mismatch")
+      -- ctx' = Ctx ([],[((Clock (k)), [("x", EL Nat)])])
+      -- check ctx' (Variable "x") Nat
+      -- lookupType "x" ctx'
+      -- Unstable? 
 
   describe "Unbox" $ do
     let simpleCtx     = Ctx ( [("b", Box Nat), ("n", Nat), ("f", Fun Nat Nat)], [])
@@ -172,33 +164,33 @@ tick on $\theta$ -}
                                   , ((Clock Zero), [("last", Box Nat)])
                                   ])
     
-    it "infer passes when type is boxed" $
+    it "infer passes when type is boxed" $ do
       infer simpleCtx (Unbox (Variable "b")) `shouldBe` Right Nat 
     
-    it "infer fails when type is not boxed" $
+    it "infer fails when type is not boxed" $ do
       let t = Unbox (Variable "n")
-      in infer simpleCtx t `shouldBe` Left (IncompatibleType { term = t, expected = EBox, got = Nat })
+      infer simpleCtx t `shouldBe` Left (IncompatibleType { term = t, expected = EBox, got = Nat })
     
-    it "check passes when given Box type" $
+    it "check passes when given Box type" $ do
       let t = Unbox (Variable "b")
-      in check simpleCtx t Nat `shouldBe` Right Nat
+      check simpleCtx t Nat `shouldBe` Right Nat
     
-    it "infer passes when given Box type from ticked context" $
+    it "infer passes when given Box type from ticked context" $ do
       let t = Unbox (Variable "last")
-      in infer tickedCtx t `shouldBe` Right Nat
+      infer tickedCtx t `shouldBe` Right Nat
     
-    it "check fails when inferred type doesn't match checked type" $
+    it "check fails when inferred type doesn't match checked type" $ do
       let t = Unbox (Variable "b")  -- infers to Nat
-      in check simpleCtx t (Fun Nat Nat)
+      check simpleCtx t (Fun Nat Nat)
         `shouldBe` Left (TypeCheckFailed { term = t, checked = Fun Nat Nat, inferred = Nat })
     
-    it "infer fails when variable not in context" $
+    it "infer fails when variable not in context" $ do
       infer simpleCtx (Unbox (Variable "z"))
         `shouldBe` Left (CtxError (VariableNotFound "z"))
     
-    it "infer fails when type is a Fun, not Box" $
+    it "infer fails when type is a Fun, not Box" $ do
       let t = Unbox (Variable "f")
-      in infer simpleCtx t
+      infer simpleCtx t
         `shouldBe` Left (IncompatibleType { term = t, expected = EBox, got = Fun Nat Nat })
 
 
