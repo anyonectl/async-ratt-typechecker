@@ -4,18 +4,11 @@ import Syntax
 
 -- map = fix r .λf .λs. let x = head s in let xs = tail s in
 --         unbox f x :: delay_cl(xs) (adv_AL r f (adv xs))
+mapType :: Type
+mapType = Box (Nat -->  Nat) --> Sig Nat --> Sig Nat
+
 mapTerm :: Term
 mapTerm =
-  Fix "r" $ lam "f" $ lam "s" $
-        let_ "x"  (Head (var "s")) $ -- x: head of s
-          let_ "xs" (Tail (var "s")) $ -- xs: tail of s
-            Cons -- construct a new signal
-              (Unbox (var "f") @@ var "x")
-              (Delay (Clock (var "xs"))
-                (AdvAL (var "r") @@ var "f" @@ Adv (var "xs"))) -- map f xs' 
-
-mapTermOrg :: Term
-mapTermOrg =
   Fix "r" $ Lam "f" $ Lam "s" $
         Let "x"  (Head (var "s")) $               -- x: head of s
           Let "xs" (Tail (var "s")) $             -- xs: tail of s
@@ -25,9 +18,6 @@ mapTermOrg =
                 (App  (App (AdvAL (var "r"))      -- 
                            (var "f")) 
                       (Adv (var "xs"))))          -- map f xs' 
-
-mapType :: Type
-mapType = Box (Nat -->  Nat) --> Sig Nat --> Sig Nat
 
 -- map bad does not take a stable function
 mapTermBadType :: Type
@@ -55,6 +45,9 @@ mapTermWrongClock =
 
 -- zip
 --
+zipTermType :: Type
+zipTermType = Sig Nat --> Sig Nat --> Sig (Prod (Sig Nat) (Sig Nat))
+
 zipTerm :: Term
 zipTerm =
   Fix "r" $ lam "s1" $ lam "s2" $ -- recursion and two signals
@@ -80,30 +73,6 @@ zipTerm =
           (AdvAL (var "r")
             @@ Proj Fst (var "both"))  -- xs'
             @@ Proj Snd (var "both"))) -- ys'
-
-zipTermType :: Type
-zipTermType = Sig Nat --> Sig Nat --> Sig (Prod (Sig Nat) (Sig Nat))
--- zipTermType = Sig Nat --> Sig Nat --> Sig (Sig Nat xx Sig Nat)
-
-zipTermBad :: Term
-zipTermBad = error "TODO" -- not sure what zip bad should be, maybe something with stability of A, B? But we only have Nat.. Maybe try it with (Fun A B) where it might be nested unstable vars or
-
-zipTermBadType :: Type
-zipTermBadType = error "TODO"
-
--- tail
---
-tailTerm :: Term
-tailTerm = error "TODO"
-
-tailTermType :: Type
-tailTermType = error "TODO"
-
-tailTermBad :: Term
-tailTermBad = error "TODO"
-
-tailTermBadType :: Type
-tailTermBadType = error "TODO"
 
 -- switch
 --
@@ -212,9 +181,12 @@ switchTermBad =
     )
 
 -- bad bad = fix r . advAL r
--- 
-badTermBad :: Term
-badTermBad = error "TODO"
+-- TODO: delete in final submission
+badBadTerm :: Term
+badBadTerm = Fix "r" (App (AdvAL (Variable "r")) (Variable "r"))
 
-badTermBadType :: Type
-badTermBadType = Empty
+badBadType :: Type
+badBadType = Nat
+
+badBad :: Term
+badBad = Anno badBadTerm badBadType

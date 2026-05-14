@@ -41,7 +41,6 @@ type Var = String
 -- TYPES
 data Type 
     = Unit                        -- simplest possible type, with exactly one value: () (unit)
-    | Empty                       -- Empty type
     | Nat                         -- type of non-negative integers 0, 1, 2, ... 
     | Prod Type Type              -- A x B is a pair (2-tuple)
     | Sum Type Type               -- A + B - the type of values that are EITHER from A or from B
@@ -54,7 +53,6 @@ data Type
 
 isStableType :: Type -> Bool
 isStableType Unit        = True
-isStableType Empty       = True
 isStableType Nat         = True
 isStableType (Prod t t') = isStableType t && isStableType t'
 isStableType (Sum t t')  = isStableType t && isStableType t'
@@ -67,7 +65,7 @@ isValueType Unit        = True
 isValueType Nat         = True
 isValueType (Prod t t') = isValueType t && isValueType t'
 isValueType (Sum t t')  = isValueType t && isValueType t'
-isValueType _           = False -- Empty, Fun _ _, EL _, AL _, Box _, Sig _
+isValueType _           = False -- Fun _ _, EL _, AL _, Box _, Sig _
 
 
 -- TERMS
@@ -161,7 +159,6 @@ indent n = replicate (2 * n) ' '
 
 prettyType :: Type -> String
 prettyType Unit          = "()"
-prettyType Empty         = "`empty type`"
 prettyType Nat           = "Nat"
 prettyType (Prod ty ty') = "(" ++ prettyType ty ++ " × " ++ prettyType ty' ++ ")"
 prettyType (Sum ty ty')  = "(" ++ prettyType ty ++ " + "  ++ prettyType ty' ++ ")"
