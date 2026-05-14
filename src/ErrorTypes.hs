@@ -7,10 +7,10 @@ data ContextError
     | ContextIsEmpty String
     | NoTickInContext
     | OtherContextError String
-    deriving (Eq, Show)
+    deriving (Eq)
 
 data Expected
-    = EEL | EAL | EProd | ESum | ESig | EBox | EFun | ENat
+    = EEL | EAL | EProd | ESum | ESig | EBox | EFun | ENat
     | EValue | EBufChan | EPushChan
     deriving (Eq)
 
@@ -25,45 +25,57 @@ data TypeError
   deriving (Eq)
 
 instance Show Expected where
-    show EEL = "sometime-later type (EL)"
-    show EAL = "anytime-later type (AL)"
-    show EProd = "product type (Prod)"
-    show ESum = "sum type (Sum)"
-    show ESig = "signal type (Sig)"
-    show EBox = "box type (Box)"
-    show EFun = "function type (Fun)"
-    show ENat = "nat (Nat)"
-    show EValue = "value term (v)"
-    show EBufChan = "buffer channel (b, pb)"
-    show EPushChan = "push channel (p, pb)"
+  show EEL        = "sometime-later type (EL)"
+  show EAL        = "anytime-later type (AL)"
+  show EProd      = "product type (Prod)"
+  show ESum       = "sum type (Sum)"
+  show ESig       = "signal type (Sig)"
+  show EBox       = "box type (Box)"
+  show EFun       = "function type (Fun)"
+  show ENat       = "nat (Nat)"
+  show EValue     = "value term (v)"
+  show EBufChan   = "buffer channel (b, pb)"
+  show EPushChan  = "push channel (p, pb)"
 
 instance Show TypeError where
-    show (TypeCheckFailed t cty ity) =
-        "TypeCheckFailed: on term '" ++ show t ++
-        "': checked '" ++ show cty ++
-        "', but inferred '" ++ show ity ++ "'"
-    
-    show (IncompatibleType t e g) = 
-        "IncompatibleType: '"
-        ++ show t ++ "' must have '" ++ show e ++ 
-        "', but got type '" ++ show g ++ "'"
+  show (TypeCheckFailed t cty ity) =
+    "TypeCheckFailed: on term '" ++ show t ++
+    "': checked '" ++ show cty ++
+    "', but inferred '" ++ show ity ++ "'"
 
-    show (IncompatibleTerm t e g) =
-        "IncompatibleTerm: '" ++ show t ++
-        "' expected '" ++ show e ++
-        "', but got '" ++ show g ++ "'"
+  show (IncompatibleType t e g) =
+    "IncompatibleType: '"
+    ++ show t ++ "' must have '" ++ show e ++
+    "', but got type '" ++ show g ++ "'"
 
-    show (IncompatibleChan t e g) = 
-        "IncompatibleChan: '" ++ show t ++
-        "' expected '" ++ show e ++
-        "', but got '" ++ show g ++ "'"
+  show (IncompatibleTerm t e g) =
+    "IncompatibleTerm: '" ++ show t ++
+    "' expected '" ++ show e ++
+    "', but got '" ++ show g ++ "'"
 
-    show (MissingAnnotation t) =
-        "MissingAnnotation: Cannot infer type of " ++ show t ++ 
-        ", annotate with expected type"
+  show (IncompatibleChan t e g) =
+    "IncompatibleChan: '" ++ show t ++
+    "' expected '" ++ show e ++
+    "', but got '" ++ show g ++ "'"
 
-    show (CtxError err) = 
-        "ContextError: " ++ show err
+  show (MissingAnnotation t) =
+    "MissingAnnotation: Cannot infer type of " ++ show t ++
+    ", annotate with expected type"
 
-    show (OtherError msg) = 
-        "Error: " ++ msg
+  show (CtxError err) =
+    "ContextError: " ++ show err
+
+  show (OtherError msg) =
+    "Error: " ++ msg
+
+instance Show ContextError where
+  show (VariableNotFound v) =
+    "VariableNotFound: variable '" ++ show v ++ 
+    "' not found in context"
+  show (UnstableType v ty) =
+    "UnstableType: variable '" ++ show v ++
+    "' has type '" ++ show ty ++ "'"
+  show NoTickInContext =
+    "NoTickInContext: No (matching) tick in context"
+  show (OtherContextError msg) =
+    show msg

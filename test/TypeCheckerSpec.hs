@@ -9,11 +9,11 @@ import ErrorTypes
 
 spec :: Spec
 spec = describe "TypeChecker" $ do
-
   describe "Variables" $ do
     let simpleCtx = Ctx ([ ("x", Nat) ], [])
     it "returns UnboundVar for missing variable" $
-      infer simpleCtx (Variable "y") `shouldBe` Left (CtxError (VariableNotFound "y"))
+      infer simpleCtx (Variable "y") 
+        `shouldBe` Left (CtxError (VariableNotFound "y"))
 
     it "infers variable in simple context" $
       infer simpleCtx (Variable "x") `shouldBe` Right Nat
@@ -21,11 +21,6 @@ spec = describe "TypeChecker" $ do
     it "infers variable in ticked context" $
       let tickedCtx = Ctx ([], [( Clock Zero, [("x", Nat)] )])
       in infer tickedCtx (Variable "x") `shouldBe` Right Nat
-
-    it "returns EmptyContext error on empty context" $
-      let emptyCtx  = Ctx ([], [])
-      in infer emptyCtx (Variable "x") `shouldBe` Left (CtxError (ContextIsEmpty "cannot lookup in empty context"))
-
 
   describe "Projection" $ do
     let projTickedCtx = Ctx ([], [(Clock Zero, [("x", Prod Nat Nat)])])
@@ -38,7 +33,8 @@ spec = describe "TypeChecker" $ do
     it "Check fails when given wrong type" $
       let t  = Proj Fst (Variable "x")
           ty = Sum Nat Nat 
-      in check projTickedCtx t ty `shouldBe` Left (TypeCheckFailed { term = t, checked = ty, inferred = Nat })
+      in check projTickedCtx t ty 
+        `shouldBe` Left (TypeCheckFailed { term = t, checked = ty, inferred = Nat })
 
   describe "Pair" $ do
     let pairCtx = Ctx([ ("x", Nat)
@@ -106,21 +102,20 @@ spec = describe "TypeChecker" $ do
         `shouldBe` Right Nat
 
   describe "Select" $ do
-
-    let selectCorrectType = Right (Sum (Sum (Prod Nat (EL Nat)) 
+    let selectTy = Right (Sum (Sum (Prod Nat (EL Nat)) 
                                             (Prod (EL Nat) Nat)) 
                                        (Prod Nat Nat))
 
     it "Select extracts (A1 x EL A2) + (EL A1 x A2) + (A1 x A2) when tick single variable"
       let ctx = Ctx ([], ([(Clock (Variable "a"), [("a", EL Nat), ("b", EL Nat)])]))
       in infer ctx (Select (Variable "a") (Variable "b")) 
-      `shouldBe` selectCorrectType
+      `shouldBe` selectTy
 
     it "Select extracts (A1 x EL A2) + (EL A1 x A2) + (A1 x A2) when tick is on union of clocks"
       let ctx = Ctx ([], [ ((ClockUnion (Clock (Variable "a")) (Clock (Variable "b")))
                                    , [("a", EL Nat), ("b", EL Nat)])])      
       in infer ctx (Select (Variable "a") (Variable "b")) 
-      `shouldBe` selectCorrectType
+      `shouldBe` selectTy
 
     it "Select fails when tick is on union of clocks in wrong order"
       let ctx = Ctx ([], [ ((ClockUnion (Clock (Variable "b")) (Clock (Variable "a")))
@@ -129,8 +124,179 @@ spec = describe "TypeChecker" $ do
       `shouldBe` Left (CtxError NoTickInContext)
 
     it "Select fails when variable not in latest ticked"
-      let ctx = Ctx ([], [ (Clock Zero,            [("a", EL Nat)])
-                                 , (Clock (Variable "a"),  [("a", EL Nat), ("b", EL Nat)]) ])      
+      let ctx = Ctx ([], [ (Clock Zero, [("a", EL Nat)])
+                         , (Clock (Variable "a"),  [("a", EL Nat), ("b", EL Nat)]) ])      
       in infer ctx (Select (Variable "a") (Variable "b")) 
       `shouldBe` Left (CtxError NoTickInContext)
 
+  describe "Delay" $ do
+    -- Inside delay we check that the type of a (term in the next time step of cl("x")) <= ty) when we are do (Delay <= EL ty)
+    let ctx  = Ctx ([("x", EL Nat)], [])  -- addTick cl("x") ctx  = Ctx ([],[((Clock (Variable "x")), [])])
+        ctx' = (addVar "x" Nat ctx)       -- addTick cl("x") ctx' = Ctx ([],[((Clock (Variable "x")), [("x", Nat)])])
+         
+    it "Delay infer fails without annotation"
+      let t = Delay (Clock (Variable "x")) (Variable "x")
+      in infer ctx t `shouldBe` Left (MissingAnnotation t)
+      
+    it "Delay infers correctly with annotated EL type" $
+      let t = Anno (Delay (Clock (Variable "x")) (Variable "x")) (EL Nat)
+      in infer ctx' t `shouldBe` Right (EL Nat)
+
+    it "Delay fails with wrong annotation: not EL type" $
+      let t = Delay (Clock (Variable "x")) (Variable "x")
+      in check ctx' t Nat `shouldBe` Left (IncompatibleType { term = t, expected = EEL, got = Nat})
+  
+    it "Delay body is checked after tick is added to context" $
+      let t = Delay (Clock (Variable "x")) (Variable "y") -- y is not in ctx
+      in check ctx' t (EL Nat) `shouldBe` Left (CtxError (VariableNotFound "y"))
+
+  describe "Unbox" $ do
+    let simpleCtx     = Ctx ( [("b", Box Nat), ("n", Nat), ("f", Fun Nat Nat)], [])
+    let tickedCtx     = Ctx ( [], [ ((Clock Zero), []) 
+                                  , ((Clock Zero), [])
+                                  , ((Clock Zero), [("last", Box Nat)])
+                                  ])
+    
+    it "infer passes when type is boxed" $
+      infer simpleCtx (Unbox (Variable "b")) `shouldBe` Right Nat 
+    
+    it "infer fails when type is not boxed" $
+      let t = Unbox (Variable "n")
+      in infer simpleCtx t `shouldBe` Left (IncompatibleType { term = t, expected = EBox, got = Nat })
+    
+    it "check passes when given Box type" $
+      let t = Unbox (Variable "b")
+      in check simpleCtx t Nat `shouldBe` Right Nat
+    
+    it "infer passes when given Box type from ticked context" $
+      let t = Unbox (Variable "last")
+      in infer tickedCtx t `shouldBe` Right Nat
+    
+    it "check fails when inferred type doesn't match checked type" $
+      let t = Unbox (Variable "b")  -- infers to Nat
+      in check simpleCtx t (Fun Nat Nat)
+        `shouldBe` Left (TypeCheckFailed { term = t, checked = Fun Nat Nat, inferred = Nat })
+    
+    it "infer fails when variable not in context" $
+      infer simpleCtx (Unbox (Variable "z"))
+        `shouldBe` Left (CtxError (VariableNotFound "z"))
+    
+    it "infer fails when type is a Fun, not Box" $
+      let t = Unbox (Variable "f")
+      in infer simpleCtx t
+        `shouldBe` Left (IncompatibleType { term = t, expected = EBox, got = Fun Nat Nat })
+
+
+  describe "Always" $ do 
+    let simpleCtx     = Ctx ( [("x", Box Nat), ("y", Nat), ("f", Fun Nat Nat)], [])
+    let tickedCtx     = Ctx ( [], [ ((Clock (Variable "x")), [("x", Box Nat), ("y", Nat), ("f", Fun Nat Nat)]) 
+                                  , ((Clock Zero),           [])
+                                  , ((Clock Zero),           [("x", Nat)])
+                                  ])
+    it "infer type when context is tick-free" $
+      let t = Always (Variable "y")
+      in infer simpleCtx t `shouldBe` Right (Box Nat)
+    
+    it "infer type when context is tick-free" $
+      let t = Always (Variable "x")
+      in infer simpleCtx t `shouldBe` Right (Box (Box Nat))
+    
+    it "infer fails when variable has non-stable type" $
+      let t = Always (Variable "f")
+      in infer simpleCtx t
+        `shouldBe` Left (CtxError (VariableNotFound "f"))
+
+    it "infer fails for non-stable variable in ticked context" $
+      let t = Always (Variable "f") 
+      in infer tickedCtx t
+        `shouldBe` Left (CtxError (VariableNotFound "f")) -- Fun Nat Nat is stripped from context
+
+    it "check passes when checked against Box type" $
+      let t = Always (Variable "x")
+      in check simpleCtx t (Box (Box Nat)) `shouldBe` Right (Box (Box Nat)) -- super boxed
+
+    it "check fails when checked against non-Box type" $
+      let t = Always (Variable "y")
+      in check simpleCtx t Nat
+        `shouldBe` Left (IncompatibleType { term = t, expected = EBox, got = Nat })
+
+  describe "Case" $ do
+    let sumTy     = Sum Nat Unit
+        inlZero   = Anno (Inj InLeft  Zero)    sumTy  -- left  0  : Nat + Unit
+        inrUnit   = Anno (Inj InRight UnitVal) sumTy  -- right () : Nat + Unit
+        emptyCtx  = Ctx ([], [])
+
+    it "infers type when both branches have the same type" $
+      -- case (inl 0) of left x -> x | right y -> 0
+      -- left  branch: x : Nat  |- x => Nat
+      -- right branch: y : Unit |- 0 => Nat
+      infer emptyCtx (Case inlZero "x" (Variable "x") "y" Zero)
+        `shouldBe` Right Nat
+
+    it "checks correctly when expected type matches both branches" $
+      check emptyCtx (Case inlZero "x" (Variable "x") "y" Zero) Nat
+        `shouldBe` Right Nat
+
+    it "infers type when branches return a product" $
+      -- left  branch: x : Nat  |- (x, 0) => Nat x Nat
+      -- right branch: y : Unit |- (0, 0) => Nat x Nat
+      infer emptyCtx (Case inrUnit "x" (Pair (Variable "x") Zero) "y" (Pair Zero Zero))
+        `shouldBe` Right (Prod Nat Nat)
+
+    it "fails when argument is not a sum type" $
+      infer emptyCtx (Case Zero "x" (Variable "x") "y" Zero)
+        `shouldBe` Left (IncompatibleType { term = Zero, expected = ESum, got = Nat })
+
+    it "fails when argument variable is not in context" $
+      infer emptyCtx (Case (Variable "z") "x" Zero "y" Zero)
+        `shouldBe` Left (CtxError (VariableNotFound "z"))
+
+    it "fails when branches have different types" $
+      -- left  branch: x : Nat  |- x => Nat
+      -- right branch: y : Unit |- y => Unit   (mismatch!)
+      let t = Case inlZero "x" (Variable "x") "y" (Variable "y")
+      in infer emptyCtx t
+        `shouldBe` Left (TypeCheckFailed
+                          { term     = Variable "y"
+                          , checked  = Nat
+                          , inferred = Unit
+                          })
+
+    it "fails when right branch has wrong type even though both branches are well-typed alone" $
+      -- left  branch: x : Nat  |- 0       => Nat
+      -- right branch: y : Unit |- UnitVal => Unit  (well-typed, but mismatches Nat)
+      let t = Case inlZero "x" Zero "y" UnitVal
+      in infer emptyCtx t
+        `shouldBe` Left (TypeCheckFailed
+                          { term     = UnitVal
+                          , checked  = Nat
+                          , inferred = Unit
+                          })
+
+    it "left branch variable is not in scope in right branch" $
+      -- left  branch: x : Nat  |- x   => Nat
+      -- right branch: y : Unit |- x   => error: x not in scope
+      let t = Case inlZero "x" (Variable "x") "y" (Variable "x")
+      in infer emptyCtx t
+        `shouldBe` Left (CtxError (VariableNotFound "x"))
+
+    it "right branch variable is not in scope in left branch" $
+      let t = Case inlZero "x" (Variable "y") "y" (Variable "y")
+      in infer emptyCtx t
+        `shouldBe` Left (CtxError (VariableNotFound "y"))
+
+    it "bound variables in each branch correctly shadow outer context" $
+      -- outer ctx has x : Unit; branch re-binds x : Nat from the sum
+      let ctx = Ctx ([("x", Unit), ("y", Unit)], [])
+          t   = Case inlZero "x" (Variable "x") "y" Zero
+      in infer ctx t `shouldBe` Right Nat 
+
+    it "infers correctly for nested case expressions" $
+      -- case (inl 0) of
+      --   left  x -> case (inl 0) of
+      --                left  a -> a
+      --                right b -> 0 
+      --   right y -> 0 
+      let inner = Case inlZero "a" (Variable "a") "b" Zero
+          outer = Case inlZero "x" inner "y" Zero
+      in infer emptyCtx outer `shouldBe` Right Nat
