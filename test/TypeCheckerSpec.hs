@@ -140,15 +140,15 @@ spec = describe "TypeChecker.hs" $ do
       let t = Anno (Delay (Clock x) x) (EL Nat)
       infer ctx t `shouldBe` Right (EL Nat)
 
-    it "Delay fails with wrong annotation: not EL type" $ do
+    it "fails with wrong annotation: not EL type" $ do
       let t = Delay (Clock x) x
       check ctx t Nat `shouldBe` Left (IncompatibleType { term = t, expected = EEL, got = Nat})
   
-    it "Delay body is checked after tick is added to context" $ do
+    it "body is checked for wrong variable" $ do
       let t = Delay (Clock x) (Variable "y")
       check ctx t (EL Nat) `shouldBe` Left (CtxError (VariableNotFound "y"))
 
-    it "Delay clock on different term fails" $ do
+    it "clock on different term fails" $ do
       let w = Wait (inputChans !! 0)
           t = Delay (Clock (w)) x 
       check ctx t (EL Nat) `shouldBe` Left (OtherError "Clock mismatch")
