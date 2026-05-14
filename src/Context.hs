@@ -6,6 +6,7 @@ import ErrorTypes
 type SimpleCtx = [(Var, Type)]
 
 newtype Ctx = Ctx (SimpleCtx, [(ClockExpr, SimpleCtx)]) -- if you read from right to left: SimpleCtx, then a tick, then a new SimpleCtx
+  deriving (Show)
 
 isEmptyCtx :: Ctx -> Bool
 isEmptyCtx (Ctx ([], [])) = True
